@@ -1184,6 +1184,7 @@ function renderModal(){
         <p class="photo-hint">Optional — helps spot students quickly in the roster and ledger.</p>
       </div>
       <div class="field"><label>Full Name</label><input id="m_name" value="${escapeHtml(d.name||'')}" placeholder="e.g. Juan Dela Cruz"/></div>
+      <div class="field"><label>Section (optional)</label><input id="m_section" value="${escapeHtml(d.section||'')}" placeholder="e.g. Mayor Stewardship"/></div>
       <div class="modal-actions">
         <button class="btn-sm ghost" id="modalCancel" style="flex:1;justify-content:center;">Cancel</button>
         <button class="btn-primary" id="modalSave">Save</button>
@@ -1330,12 +1331,13 @@ async function saveModal(){
   if(type==='student'){
     const name = document.getElementById('m_name').value.trim();
     if(!name){ showToast('Name is required'); return; }
+    const section = document.getElementById('m_section').value.trim();
     const photo = d.photo || null;
     if(d.id){
       const s = state.roster.find(x=>x.id===d.id);
-      s.name=name; s.photo=photo;
+      s.name=name; s.photo=photo; s.section=section;
     } else {
-      state.roster.push({id:'st_'+Date.now(), name, photo});
+      state.roster.push({id:'st_'+Date.now(), name, photo, section});
     }
     await saveShared('roster', state.roster);
     showToast('Student saved');
