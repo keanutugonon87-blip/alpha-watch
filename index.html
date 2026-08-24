@@ -1494,7 +1494,16 @@ async function exportLedgerCSV(){
   if(state.ledger.length===0){ showToast('No violations to export yet'); return; }
   if(typeof ExcelJS==='undefined'){ showToast('Could not load the report engine — check your connection'); return; }
   showToast('Preparing report…');
+  try{
+    await buildAndDownloadLedgerReport();
+    showToast('Report downloaded');
+  }catch(err){
+    console.error('Export failed:', err);
+    showToast('Export failed: ' + (err && err.message ? err.message : 'unknown error'));
+  }
+}
 
+async function buildAndDownloadLedgerReport(){
   const rows = state.ledger.map(v=>{
     const st = state.roster.find(s=>s.id===v.studentId);
     const cat = state.standard.find(c=>c.id===v.categoryId);
@@ -1674,12 +1683,33 @@ async function exportLedgerCSV(){
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const filename = `alpha-watch-violations-report-${todayISO()}.xlsx`;
+  downloadBlob(blob, filename);
+}
+
+/* Mobile-safe blob download: tries the standard anchor-click approach first,
+   falls back to opening the file in a new tab (iOS Safari / in-app browsers
+   often silently block a synthetic click if it happens after any await). */
+function downloadBlob(blob, filename){
+  // Older Edge/IE support (harmless no-op elsewhere)
+  if(window.navigator && window.navigator.msSaveOrOpenBlob){
+    window.navigator.msSaveOrOpenBlob(blob, filename);
+    return;
+  }
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `alpha-watch-violations-report-${todayISO()}.xlsx`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast('Report downloaded');
+  try{
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } finally {
+    // Give the browser time to start the download/open before revoking
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  }
 }
 /* Close any open searchable-combo dropdown when clicking elsewhere */
 document.addEventListener('click', (e)=>{
