@@ -656,18 +656,20 @@ function attachGateEvents(){
 function navBtn(id,label,icon){
   return `<button data-tab="${id}" class="${state.tab===id?'active':''}">${icon}<span>${label}</span></button>`;
 }
-function roleLabel(role){ return role==='mayor'?'Mayor':role==='marshall'?'Marshall':'Secretary'; }
+function roleLabel(role){ return role==='mayor'?'Mayor':role==='marshall'?'Marshall':role==='sails'?'SAILS Officer':'Secretary'; }
 function appHTML(){
   const isMayor = state.session.role==='mayor';
   const isMarshall = state.session.role==='marshall';
+  const isSails = state.session.role==='sails';
+  if(isSails) state.tab = 'dashboard'; // SAILS Officer only ever has the one view
   const navHTML = `
     <nav class="navbar">
       <div class="navbar-logo"><div class="logo-chip"><img src="${LOGO_URI}" alt="Alpha logo"/></div><b>ALPHA<br/>WATCH</b></div>
       ${navBtn('dashboard','Dashboard',ICON.home)}
-      ${navBtn('roster',isMarshall?'Students':'Pack Roster',ICON.users)}
-      ${navBtn('standard','The Standard',ICON.clipboard)}
-      ${!isMarshall?navBtn('log','Log',ICON.plus):''}
-      ${navBtn('ledger','Ledger',ICON.list)}
+      ${!isSails?navBtn('roster',isMarshall?'Students':'Pack Roster',ICON.users):''}
+      ${!isSails?navBtn('standard','The Standard',ICON.clipboard):''}
+      ${(!isSails && !isMarshall)?navBtn('log','Log',ICON.plus):''}
+      ${!isSails?navBtn('ledger','Ledger',ICON.list):''}
       ${isMayor?navBtn('accounts','Accounts',ICON.key):''}
     </nav>`;
   const topbar = `
@@ -684,7 +686,7 @@ function appHTML(){
       <div class="who"><span class="chip">${roleLabel(state.session.role)}</span><button id="changePassBtnD" style="background:none;border:1px solid var(--line);color:var(--ink-soft);font-size:11px;padding:6px 12px;border-radius:20px;cursor:pointer;">Password</button><button id="logoutBtnD" style="background:none;border:1px solid var(--line);color:var(--ink-soft);font-size:11px;padding:6px 12px;border-radius:20px;cursor:pointer;">Sign out</button></div>
     </div>`;
   let body='';
-  if(state.tab==='dashboard') body = isMarshall ? marshallDashboardHTML() : dashboardHTML();
+  if(state.tab==='dashboard') body = isSails ? sailsDashboardHTML() : (isMarshall ? marshallDashboardHTML() : dashboardHTML());
   else if(state.tab==='roster') body = rosterHTML();
   else if(state.tab==='standard') body = standardHTML();
   else if(state.tab==='log') body = isMarshall ? marshallDashboardHTML() : logHTML();
@@ -715,6 +717,7 @@ function attachAppEvents(){
   if(state.tab==='log') attachLogEvents();
   if(state.tab==='ledger') attachLedgerEvents();
   if(state.tab==='accounts' && state.session.role==='mayor') attachAccountsEvents();
+  if(state.tab==='dashboard' && state.session.role==='sails') attachSailsDashboardEvents();
   const gotoRoster = document.querySelector('[data-goto-roster]');
   if(gotoRoster) gotoRoster.onclick = ()=>{ state.tab='roster'; render(); };
 }
@@ -830,7 +833,60 @@ function marshallDashboardHTML(){
     </div>
   `;
 }
-/* ============== ROSTER ============== */
+/* ============== SAILS OFFICER DASHBOARD (read-only) ============== */
+function sailsDashboardHTML(){
+  const q = state.search.toLowerCase();
+  const total = state.roster.length;
+  const withPending = state.roster.filter(s=> state.ledger.some(v=>v.studentId===s.id && v.status==='pending')).length;
+  const clear = total - withPending;
+
+  const rows = state.roster
+    .map(s=>{
+      const pending = state.ledger.filter(v=>v.studentId===s.id && v.status==='pending').length;
+      const resolved = state.ledger.filter(v=>v.studentId===s.id && v.status==='resolved').length;
+      return {student:s, pending, resolved};
+    })
+    .filter(r=> r.student.name.toLowerCase().includes(q) || (r.student.section||'').toLowerCase().includes(q))
+    .sort((a,b)=> b.pending-a.pending || a.student.name.localeCompare(b.student.name));
+
+  return `
+    <h2 class="section-title">${ICON.clipboard}Student Status Overview</h2>
+    <p class="subtext">Welcome back, ${escapeHtml(state.session.name)}. View-only — every student and their current standing.</p>
+
+    <div class="grid-stats">
+      <div class="stat gold"><div class="stat-icon">${ICON.users}</div><b class="mono" data-count="${total}">0</b><span>Students Tracked</span></div>
+      <div class="stat pend"><div class="stat-icon">${ICON.clock}</div><b class="mono" data-count="${withPending}">0</b><span>With Pending Items</span></div>
+      <div class="stat res"><div class="stat-icon">${ICON.check}</div><b class="mono" data-count="${clear}">0</b><span>Clear</span></div>
+    </div>
+
+    <div class="fab-row">
+      <div class="search" style="flex:1;margin-bottom:0;">${ICON.search}<input id="sailsSearch" placeholder="Search name or section…" value="${escapeHtml(state.search)}"/></div>
+      <button class="btn-sm gold" id="sailsExportBtn">${ICON.download}Export Report</button>
+    </div>
+
+    <div class="card">
+      ${rows.length===0? emptyState('No students found', 'Try a different search, or ask the Mayor to add students.', ICON.users) :
+        rows.map(r=>{
+          const statusLabel = r.pending>0 ? `${r.pending} pending` : 'Clear';
+          const statusClass = r.pending>0 ? 'pending' : 'resolved';
+          return `<div class="list-item">
+            ${avatarHTML(r.student)}
+            <div class="li-main"><b>${escapeHtml(r.student.name)}</b><span>${escapeHtml(r.student.section||'—')}${r.resolved?` · ${r.resolved} resolved`:''}</span></div>
+            <span class="status-chip ${statusClass}">${r.pending>0?ICON.clock:ICON.check}${statusLabel}</span>
+          </div>`;
+        }).join('')
+      }
+    </div>
+  `;
+}
+function attachSailsDashboardEvents(){
+  const search = document.getElementById('sailsSearch');
+  if(search) search.oninput = ()=>{ state.search = search.value; render(); const el=document.getElementById('sailsSearch'); if(el){ el.focus(); el.selectionStart=el.value.length; } };
+  const exportBtn = document.getElementById('sailsExportBtn');
+  if(exportBtn) exportBtn.onclick = exportLedgerCSV;
+}
+
+
 function rosterHTML(){
   const isMayor = state.session.role==='mayor';
   const isMarshall = state.session.role==='marshall';
@@ -1218,6 +1274,7 @@ function renderModal(){
         <select id="m_acc_role">
           <option value="secretary" ${d.role==='secretary'?'selected':''}>Secretary</option>
           <option value="marshall" ${d.role==='marshall'?'selected':''}>Marshall</option>
+          <option value="sails" ${d.role==='sails'?'selected':''}>SAILS Officer</option>
           <option value="mayor" ${d.role==='mayor'?'selected':''}>Mayor</option>
         </select>
       </div>
