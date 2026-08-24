@@ -238,6 +238,14 @@
   .status-chip svg{width:11px;height:11px;}
   .status-chip.pending{background:var(--pending-bg);color:var(--pending);}
   .status-chip.resolved{background:var(--resolved-bg);color:var(--resolved);}
+  .status-chip.awaiting{background:#efe6fb;color:#6d4bb5;}
+  .status-chip.resolvereq{background:#e0f2fe;color:#0369a1;}
+  .status-chip.forwarded{background:#fdf1de;color:#c98f16;}
+  .queue-card{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;background:#fff;}
+  .queue-card .queue-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .queue-card .queue-actions{display:flex;gap:8px;}
+  .queue-card .queue-actions .btn-sm{flex:1;justify-content:center;}
+  .workflow-note{display:block;color:var(--ink-soft);font-size:11px;margin-top:2px;}
 
   .empty{text-align:center;padding:40px 16px;color:var(--ink-soft);}
   .empty-icon-wrap{
@@ -656,11 +664,34 @@ function attachGateEvents(){
 function navBtn(id,label,icon){
   return `<button data-tab="${id}" class="${state.tab===id?'active':''}">${icon}<span>${label}</span></button>`;
 }
-function roleLabel(role){ return role==='mayor'?'Mayor':role==='marshall'?'Marshall':role==='sails'?'SAILS Officer':'Secretary'; }
+function roleLabel(role){ return role==='mayor'?'Mayor':role==='marshall'?'Marshall':role==='sails'?'SAILS Officer':role==='vice_mayor'?'Vice Mayor':'Secretary'; }
+/* Central status metadata so every screen renders new workflow states consistently */
+function statusMeta(status){
+  switch(status){
+    case 'resolved': return {label:'resolved', icon:ICON.check, cls:'resolved'};
+    case 'awaiting_approval': return {label:'awaiting approval', icon:ICON.clock, cls:'awaiting'};
+    case 'resolve_requested': return {label:'resolve requested', icon:ICON.send, cls:'resolvereq'};
+    case 'resolve_forwarded': return {label:'awaiting VP approval', icon:ICON.send, cls:'forwarded'};
+    default: return {label:'pending', icon:ICON.clock, cls:'pending'};
+  }
+}
+function statusChipHTML(v){
+  const m = statusMeta(v.status);
+  return `<span class="status-chip ${m.cls}">${m.icon}${m.label}</span>`;
+}
+function currentDashboardHTML(){
+  const role = state.session.role;
+  if(role==='sails') return sailsDashboardHTML();
+  if(role==='marshall') return marshallDashboardHTML();
+  if(role==='secretary') return secretaryDashboardHTML();
+  if(role==='vice_mayor') return viceMayorDashboardHTML();
+  return dashboardHTML();
+}
 function appHTML(){
   const isMayor = state.session.role==='mayor';
   const isMarshall = state.session.role==='marshall';
   const isSails = state.session.role==='sails';
+  const isViceMayor = state.session.role==='vice_mayor';
   if(isSails) state.tab = 'dashboard'; // SAILS Officer only ever has the one view
   const navHTML = `
     <nav class="navbar">
@@ -668,7 +699,7 @@ function appHTML(){
       ${navBtn('dashboard','Dashboard',ICON.home)}
       ${!isSails?navBtn('roster',isMarshall?'Students':'Pack Roster',ICON.users):''}
       ${!isSails?navBtn('standard','The Standard',ICON.clipboard):''}
-      ${(!isSails && !isMarshall)?navBtn('log','Log',ICON.plus):''}
+      ${(!isSails && !isMarshall && !isViceMayor)?navBtn('log','Log',ICON.plus):''}
       ${!isSails?navBtn('ledger','Ledger',ICON.list):''}
       ${isMayor?navBtn('accounts','Accounts',ICON.key):''}
     </nav>`;
@@ -686,12 +717,12 @@ function appHTML(){
       <div class="who"><span class="chip">${roleLabel(state.session.role)}</span><button id="changePassBtnD" style="background:none;border:1px solid var(--line);color:var(--ink-soft);font-size:11px;padding:6px 12px;border-radius:20px;cursor:pointer;">Password</button><button id="logoutBtnD" style="background:none;border:1px solid var(--line);color:var(--ink-soft);font-size:11px;padding:6px 12px;border-radius:20px;cursor:pointer;">Sign out</button></div>
     </div>`;
   let body='';
-  if(state.tab==='dashboard') body = isSails ? sailsDashboardHTML() : (isMarshall ? marshallDashboardHTML() : dashboardHTML());
+  if(state.tab==='dashboard') body = currentDashboardHTML();
   else if(state.tab==='roster') body = rosterHTML();
   else if(state.tab==='standard') body = standardHTML();
-  else if(state.tab==='log') body = isMarshall ? marshallDashboardHTML() : logHTML();
+  else if(state.tab==='log') body = (isMarshall || isViceMayor) ? currentDashboardHTML() : logHTML();
   else if(state.tab==='ledger') body = ledgerHTML();
-  else if(state.tab==='accounts') body = isMayor ? accountsHTML() : (isMarshall?marshallDashboardHTML():dashboardHTML());
+  else if(state.tab==='accounts') body = isMayor ? accountsHTML() : currentDashboardHTML();
 
   return `
     <div id="app">
@@ -718,6 +749,8 @@ function attachAppEvents(){
   if(state.tab==='ledger') attachLedgerEvents();
   if(state.tab==='accounts' && state.session.role==='mayor') attachAccountsEvents();
   if(state.tab==='dashboard' && state.session.role==='sails') attachSailsDashboardEvents();
+  if(state.tab==='dashboard' && state.session.role==='secretary') attachSecretaryDashboardEvents();
+  if(state.tab==='dashboard' && state.session.role==='vice_mayor') attachViceMayorDashboardEvents();
   const gotoRoster = document.querySelector('[data-goto-roster]');
   if(gotoRoster) gotoRoster.onclick = ()=>{ state.tab='roster'; render(); };
 }
@@ -732,6 +765,8 @@ function dashboardHTML(){
   const total = state.ledger.length;
   const pending = state.ledger.filter(v=>v.status==='pending').length;
   const resolved = state.ledger.filter(v=>v.status==='resolved').length;
+  const awaitingApproval = state.ledger.filter(v=>v.status==='awaiting_approval').length;
+  const inResolveReview = state.ledger.filter(v=>v.status==='resolve_requested' || v.status==='resolve_forwarded').length;
   const pct = total? Math.min(100, Math.round((pending/Math.max(state.roster.length,1))*100)) : 0;
   let level='CALM', levelColor='var(--resolved)';
   if(pct>66){level='HOWLING';levelColor='var(--danger)';}
@@ -755,6 +790,8 @@ function dashboardHTML(){
       <div class="stat pend"><div class="stat-icon">${ICON.clock}</div><b class="mono" data-count="${pending}">0</b><span>Pending</span></div>
       <div class="stat res"><div class="stat-icon">${ICON.check}</div><b class="mono" data-count="${resolved}">0</b><span>Resolved</span></div>
       <div class="stat gold"><div class="stat-icon">${ICON.users}</div><b class="mono" data-count="${state.roster.length}">0</b><span>Students Tracked</span></div>
+      <div class="stat"><div class="stat-icon">${ICON.clock}</div><b class="mono" data-count="${awaitingApproval}">0</b><span>Awaiting Secretary Approval</span></div>
+      <div class="stat"><div class="stat-icon">${ICON.send}</div><b class="mono" data-count="${inResolveReview}">0</b><span>In Resolve Review</span></div>
     </div>
 
     <div class="howl-meter">
@@ -782,7 +819,7 @@ function dashboardHTML(){
           return `<div class="list-item">
             ${avatarHTML(st)}
             <div class="li-main"><b>${st?escapeHtml(st.name):'Unknown student'}</b><span>${cat?escapeHtml(cat.title):'—'} · ${formatDate(v.date)} · by ${escapeHtml(v.reportedBy)}</span></div>
-            <span class="status-chip ${v.status}">${v.status==='resolved'?ICON.check:ICON.clock}${v.status}</span>
+            ${statusChipHTML(v)}
           </div>`;
         }).join('')
       }
@@ -826,7 +863,7 @@ function marshallDashboardHTML(){
           return `<div class="list-item">
             ${avatarHTML(st)}
             <div class="li-main"><b>${st?escapeHtml(st.name):'Unknown student'}</b><span>${cat?escapeHtml(cat.title):'—'} · ${formatDate(v.date)} · by ${escapeHtml(v.reportedBy)}</span></div>
-            <span class="status-chip ${v.status}">${v.status==='resolved'?ICON.check:ICON.clock}${v.status}</span>
+            ${statusChipHTML(v)}
           </div>`;
         }).join('')
       }
@@ -886,11 +923,104 @@ function attachSailsDashboardEvents(){
   if(exportBtn) exportBtn.onclick = exportLedgerCSV;
 }
 
+/* ============== SECRETARY DASHBOARD (approves Marshall submissions & resolve requests) ============== */
+function queueItemHTML(v, actionsHTML){
+  const st = state.roster.find(s=>s.id===v.studentId);
+  const cat = state.standard.find(c=>c.id===v.categoryId);
+  return `
+    <div class="queue-card">
+      <div class="queue-top">
+        ${avatarHTML(st, 'width:34px;height:34px;font-size:13px;')}
+        <div style="flex:1;">
+          <b style="font-size:13.5px;display:block;">${st?escapeHtml(st.name):'Unknown student'}</b>
+          <span style="font-size:11.5px;color:var(--ink-soft);">${cat?escapeHtml(cat.title):'—'} · ${formatDate(v.date)} · by ${escapeHtml(v.reportedBy)}</span>
+        </div>
+        ${statusChipHTML(v)}
+      </div>
+      <div class="queue-actions">${actionsHTML}</div>
+    </div>`;
+}
+function secretaryDashboardHTML(){
+  const awaiting = state.ledger.filter(v=>v.status==='awaiting_approval').sort((a,b)=> a.date.localeCompare(b.date));
+  const resolveReqs = state.ledger.filter(v=>v.status==='resolve_requested').sort((a,b)=> a.date.localeCompare(b.date));
+  const pending = state.ledger.filter(v=>v.status==='pending').length;
+  const resolved = state.ledger.filter(v=>v.status==='resolved').length;
+
+  return `
+    <h2 class="section-title">${ICON.key}Secretary Desk</h2>
+    <p class="subtext">Welcome back, ${escapeHtml(state.session.name)}. Approve what the Marshalls send in, and review resolve requests before they reach the Vice Mayor.</p>
+
+    <div class="grid-stats">
+      <div class="stat"><div class="stat-icon">${ICON.clock}</div><b class="mono" data-count="${awaiting.length}">0</b><span>Awaiting Approval</span></div>
+      <div class="stat"><div class="stat-icon">${ICON.send}</div><b class="mono" data-count="${resolveReqs.length}">0</b><span>Resolve Requests</span></div>
+      <div class="stat pend"><div class="stat-icon">${ICON.clock}</div><b class="mono" data-count="${pending}">0</b><span>Active Pending</span></div>
+      <div class="stat res"><div class="stat-icon">${ICON.check}</div><b class="mono" data-count="${resolved}">0</b><span>Resolved</span></div>
+    </div>
+
+    <h2 class="section-title" style="font-size:15px;margin-top:6px;">${ICON.clock}Violations Awaiting Your Approval</h2>
+    ${awaiting.length===0? emptyState('All caught up','No Marshall submissions are waiting on you.', ICON.check) :
+      awaiting.map(v=> queueItemHTML(v, `
+        <button class="btn-sm gold" data-approve-violation="${v.id}">${ICON.check}Approve</button>
+        <button class="btn-sm danger" data-decline-violation="${v.id}">${ICON.trash}Decline</button>
+      `)).join('')
+    }
+
+    <h2 class="section-title" style="font-size:15px;margin-top:16px;">${ICON.send}Resolve Requests Awaiting Your Review</h2>
+    ${resolveReqs.length===0? emptyState('Nothing to review','No resolve requests from the Marshalls right now.', ICON.check) :
+      resolveReqs.map(v=> queueItemHTML(v, `
+        <button class="btn-sm gold" data-forward-resolve="${v.id}">${ICON.send}Forward to VP</button>
+        <button class="btn-sm danger" data-decline-resolve="${v.id}">Decline</button>
+      `)).join('')
+    }
+  `;
+}
+function attachSecretaryDashboardEvents(){
+  attachViolationWorkflowEvents();
+}
+
+/* ============== VICE MAYOR DASHBOARD (final approval on resolve requests; supervises progress) ============== */
+function viceMayorDashboardHTML(){
+  const forwarded = state.ledger.filter(v=>v.status==='resolve_forwarded').sort((a,b)=> a.date.localeCompare(b.date));
+  const total = state.ledger.length;
+  const awaitingApproval = state.ledger.filter(v=>v.status==='awaiting_approval').length;
+  const pending = state.ledger.filter(v=>v.status==='pending').length;
+  const resolveReqs = state.ledger.filter(v=>v.status==='resolve_requested').length;
+  const resolved = state.ledger.filter(v=>v.status==='resolved').length;
+
+  return `
+    <h2 class="section-title">${ICON.checklist}Vice Mayor's Watch</h2>
+    <p class="subtext">Welcome back, ${escapeHtml(state.session.name)}. Give final approval on resolve requests forwarded by the Secretary, and keep an eye on the pack's overall progress.</p>
+
+    <div class="grid-stats">
+      <div class="stat"><div class="stat-icon">${ICON.send}</div><b class="mono" data-count="${forwarded.length}">0</b><span>Awaiting Your Approval</span></div>
+      <div class="stat pend"><div class="stat-icon">${ICON.clock}</div><b class="mono" data-count="${pending}">0</b><span>Active Pending</span></div>
+      <div class="stat res"><div class="stat-icon">${ICON.check}</div><b class="mono" data-count="${resolved}">0</b><span>Resolved</span></div>
+      <div class="stat gold"><div class="stat-icon">${ICON.list}</div><b class="mono" data-count="${total}">0</b><span>Total Logged</span></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <p class="subtext" style="margin:0;">In the pipeline right now: <b>${awaitingApproval}</b> awaiting Secretary approval, <b>${resolveReqs}</b> resolve request${resolveReqs===1?'':'s'} with the Secretary, <b>${forwarded.length}</b> waiting on you.</p>
+    </div>
+
+    <h2 class="section-title" style="font-size:15px;margin-top:6px;">${ICON.send}Resolve Requests Awaiting Your Approval</h2>
+    ${forwarded.length===0? emptyState('Nothing pending','No resolve requests have reached you yet.', ICON.check) :
+      forwarded.map(v=> queueItemHTML(v, `
+        <button class="btn-sm gold" data-approve-resolve="${v.id}">${ICON.check}Approve Resolution</button>
+        <button class="btn-sm danger" data-decline-resolve-vp="${v.id}">Decline</button>
+      `)).join('')
+    }
+  `;
+}
+function attachViceMayorDashboardEvents(){
+  attachViolationWorkflowEvents();
+}
+
 
 function rosterHTML(){
   const isMayor = state.session.role==='mayor';
   const isMarshall = state.session.role==='marshall';
-  const canAdd = !isMarshall;
+  const isViceMayor = state.session.role==='vice_mayor';
+  const canAdd = !isMarshall && !isViceMayor;
   const q = state.search.toLowerCase();
   const filtered = state.roster.filter(s=> s.name.toLowerCase().includes(q) || (s.section||'').toLowerCase().includes(q));
   return `
@@ -1101,6 +1231,47 @@ function attachLogEvents(){
 }
 
 /* ============== LEDGER ============== */
+/*
+  Line of authority for a violation's lifecycle:
+    awaiting_approval -> (Secretary approves)      -> pending
+                       -> (Secretary declines)      -> deleted
+    pending            -> (Marshall requests resolve) -> resolve_requested
+    resolve_requested  -> (Secretary forwards)       -> resolve_forwarded
+                       -> (Secretary declines)       -> pending
+    resolve_forwarded  -> (Vice Mayor approves)      -> resolved
+                       -> (Vice Mayor declines)       -> pending
+  Adding and removing violation records outright stays Mayor-only.
+*/
+function violationActionsHTML(v){
+  const role = state.session.role;
+  const isMayor = role==='mayor';
+  const isMarshall = role==='marshall';
+  const isSecretary = role==='secretary';
+  const isViceMayor = role==='vice_mayor';
+  let actions = '';
+  if(v.status==='awaiting_approval' && isSecretary){
+    actions = `<button class="btn-sm gold" data-approve-violation="${v.id}" style="padding:5px 10px;">${ICON.check}Approve</button>
+      <button class="btn-sm danger" data-decline-violation="${v.id}" style="padding:5px 10px;">${ICON.trash}Decline</button>`;
+  } else if(v.status==='pending' && isMarshall){
+    actions = `<button class="btn-sm gold" data-request-resolve="${v.id}" style="padding:5px 10px;">${ICON.send}Request Resolve</button>`;
+  } else if(v.status==='resolve_requested' && isSecretary){
+    actions = `<button class="btn-sm gold" data-forward-resolve="${v.id}" style="padding:5px 10px;">${ICON.send}Forward to VP</button>
+      <button class="btn-sm danger" data-decline-resolve="${v.id}" style="padding:5px 10px;">Decline</button>`;
+  } else if(v.status==='resolve_forwarded' && isViceMayor){
+    actions = `<button class="btn-sm gold" data-approve-resolve="${v.id}" style="padding:5px 10px;">${ICON.check}Approve Resolution</button>
+      <button class="btn-sm danger" data-decline-resolve-vp="${v.id}" style="padding:5px 10px;">Decline</button>`;
+  }
+  const delBtn = isMayor ? `<button class="btn-sm danger" data-del-violation="${v.id}" style="padding:4px 8px;">${ICON.trash}</button>` : '';
+  return `${actions}${delBtn}`;
+}
+function violationWorkflowNoteHTML(v){
+  const bits = [];
+  if(v.resolveRequestedBy) bits.push(`Resolve requested by ${escapeHtml(v.resolveRequestedBy)}`);
+  if(v.forwardedBy) bits.push(`forwarded by ${escapeHtml(v.forwardedBy)}`);
+  if(v.approvedBy) bits.push(`approved by ${escapeHtml(v.approvedBy)}`);
+  if(v.status==='resolved' && v.resolvedBy) bits.push(`resolved by ${escapeHtml(v.resolvedBy)}`);
+  return bits.length ? `<span class="workflow-note">${bits.join(' · ')}</span>` : '';
+}
 function ledgerHTML(){
   const isMayor = state.session.role==='mayor';
   const q = state.search.toLowerCase();
@@ -1124,7 +1295,10 @@ function ledgerHTML(){
       ${ICON.search}<input id="ledgerSearch" placeholder="Search student or checkpoint…" value="${escapeHtml(state.search)}"/>
       <select id="ledgerFilter">
         <option value="all" ${state.statusFilter==='all'?'selected':''}>All</option>
+        <option value="awaiting_approval" ${state.statusFilter==='awaiting_approval'?'selected':''}>Awaiting Approval</option>
         <option value="pending" ${state.statusFilter==='pending'?'selected':''}>Pending</option>
+        <option value="resolve_requested" ${state.statusFilter==='resolve_requested'?'selected':''}>Resolve Requested</option>
+        <option value="resolve_forwarded" ${state.statusFilter==='resolve_forwarded'?'selected':''}>Awaiting VP Approval</option>
         <option value="resolved" ${state.statusFilter==='resolved'?'selected':''}>Resolved</option>
       </select>
     </div>
@@ -1137,10 +1311,11 @@ function ledgerHTML(){
               <b>${escapeHtml(v.studentName)}</b>
               <span>${escapeHtml(v.catTitle)} · ${formatDate(v.date)} · ${escapeHtml(v.sanction)}</span>
               <span style="display:block;color:var(--ink-soft);">Reported by ${escapeHtml(v.reportedBy)}${v.source==='inspection'?' · <span class="insp-tag">Inspection</span>':''}</span>
+              ${violationWorkflowNoteHTML(v)}
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-              <span class="status-chip ${v.status}" ${isMayor?`data-toggle-status="${v.id}" style="cursor:pointer;"`:''}>${v.status==='resolved'?ICON.check:ICON.clock}${v.status}</span>
-              ${isMayor?`<button class="btn-sm danger" data-del-violation="${v.id}" style="padding:4px 8px;">${ICON.trash}</button>`:''}
+              ${statusChipHTML(v)}
+              <div style="display:flex;gap:6px;">${violationActionsHTML(v)}</div>
             </div>
           </div>
         `).join('')
@@ -1155,21 +1330,91 @@ function attachLedgerEvents(){
   if(search) search.oninput = ()=>{ state.search = search.value; render(); const el=document.getElementById('ledgerSearch'); el.focus(); el.selectionStart=el.value.length; };
   const filt = document.getElementById('ledgerFilter');
   if(filt) filt.onchange = ()=>{ state.statusFilter = filt.value; render(); };
-  document.querySelectorAll('[data-toggle-status]').forEach(el=>{
-    el.onclick = async ()=>{
-      const rec = state.ledger.find(v=>v.id===el.dataset.toggleStatus);
-      rec.status = rec.status==='pending' ? 'resolved' : 'pending';
-      await saveShared('ledger', state.ledger);
-      showToast(`Marked as ${rec.status}`);
-      render();
-    };
-  });
+  attachViolationWorkflowEvents();
   document.querySelectorAll('[data-del-violation]').forEach(b=>{
     b.onclick = async ()=>{
       if(!confirm('Delete this violation record?')) return;
       state.ledger = state.ledger.filter(v=>v.id!==b.dataset.delViolation);
       await saveShared('ledger', state.ledger);
       showToast('Record deleted');
+      render();
+    };
+  });
+}
+/* Shared by the Ledger tab and the Secretary/Vice Mayor dashboard queues */
+function attachViolationWorkflowEvents(){
+  document.querySelectorAll('[data-approve-violation]').forEach(b=>{
+    b.onclick = async ()=>{
+      const rec = state.ledger.find(v=>v.id===b.dataset.approveViolation);
+      if(!rec) return;
+      rec.status = 'pending';
+      rec.approvedBy = state.session.name;
+      await saveShared('ledger', state.ledger);
+      showToast('Violation approved');
+      render();
+    };
+  });
+  document.querySelectorAll('[data-decline-violation]').forEach(b=>{
+    b.onclick = async ()=>{
+      if(!confirm('Decline and remove this submitted violation?')) return;
+      state.ledger = state.ledger.filter(v=>v.id!==b.dataset.declineViolation);
+      await saveShared('ledger', state.ledger);
+      showToast('Violation declined');
+      render();
+    };
+  });
+  document.querySelectorAll('[data-request-resolve]').forEach(b=>{
+    b.onclick = async ()=>{
+      const rec = state.ledger.find(v=>v.id===b.dataset.requestResolve);
+      if(!rec) return;
+      rec.status = 'resolve_requested';
+      rec.resolveRequestedBy = state.session.name;
+      await saveShared('ledger', state.ledger);
+      showToast('Resolve request sent to the Secretary');
+      render();
+    };
+  });
+  document.querySelectorAll('[data-forward-resolve]').forEach(b=>{
+    b.onclick = async ()=>{
+      const rec = state.ledger.find(v=>v.id===b.dataset.forwardResolve);
+      if(!rec) return;
+      rec.status = 'resolve_forwarded';
+      rec.forwardedBy = state.session.name;
+      await saveShared('ledger', state.ledger);
+      showToast('Forwarded to the Vice Mayor');
+      render();
+    };
+  });
+  document.querySelectorAll('[data-decline-resolve]').forEach(b=>{
+    b.onclick = async ()=>{
+      const rec = state.ledger.find(v=>v.id===b.dataset.declineResolve);
+      if(!rec) return;
+      rec.status = 'pending';
+      delete rec.resolveRequestedBy;
+      await saveShared('ledger', state.ledger);
+      showToast('Resolve request declined');
+      render();
+    };
+  });
+  document.querySelectorAll('[data-approve-resolve]').forEach(b=>{
+    b.onclick = async ()=>{
+      const rec = state.ledger.find(v=>v.id===b.dataset.approveResolve);
+      if(!rec) return;
+      rec.status = 'resolved';
+      rec.resolvedBy = state.session.name;
+      await saveShared('ledger', state.ledger);
+      showToast('Resolution approved');
+      render();
+    };
+  });
+  document.querySelectorAll('[data-decline-resolve-vp]').forEach(b=>{
+    b.onclick = async ()=>{
+      const rec = state.ledger.find(v=>v.id===b.dataset.declineResolveVp);
+      if(!rec) return;
+      rec.status = 'pending';
+      delete rec.resolveRequestedBy; delete rec.forwardedBy;
+      await saveShared('ledger', state.ledger);
+      showToast('Resolution declined — sent back to pending');
       render();
     };
   });
@@ -1274,6 +1519,7 @@ function renderModal(){
         <select id="m_acc_role">
           <option value="secretary" ${d.role==='secretary'?'selected':''}>Secretary</option>
           <option value="marshall" ${d.role==='marshall'?'selected':''}>Marshall</option>
+          <option value="vice_mayor" ${d.role==='vice_mayor'?'selected':''}>Vice Mayor</option>
           <option value="sails" ${d.role==='sails'?'selected':''}>SAILS Officer</option>
           <option value="mayor" ${d.role==='mayor'?'selected':''}>Mayor</option>
         </select>
@@ -1475,12 +1721,12 @@ async function sendInspectionReport(d){
       date: today,
       sanction: c.note ? `${c.sanction} — ${c.note}` : c.sanction,
       reportedBy: state.session.name,
-      status: 'pending',
+      status: 'awaiting_approval',
       source: 'inspection',
     });
   });
   await saveShared('ledger', state.ledger);
-  showToast(`Report sent to the Secretary — ${fails.length} violation${fails.length>1?'s':''} logged`);
+  showToast(`Report sent to the Secretary for approval — ${fails.length} violation${fails.length>1?'s':''} submitted`);
   state.modal=null;
   render();
 }
