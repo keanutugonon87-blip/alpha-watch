@@ -898,7 +898,8 @@ function sailsDashboardHTML(){
 
     <div class="fab-row">
       <div class="search" style="flex:1;margin-bottom:0;">${ICON.search}<input id="sailsSearch" placeholder="Search name or section…" value="${escapeHtml(state.search)}"/></div>
-      <button class="btn-sm gold" id="sailsExportBtn">${ICON.download}Export Report</button>
+      <button class="btn-sm gold" id="sailsExportBtn">${ICON.download}Excel</button>
+      <button class="btn-sm" id="sailsPrintBtn" style="border:1px solid var(--line);background:#fff;">${ICON.list}Print / PDF</button>
     </div>
 
     <div class="card">
@@ -921,6 +922,8 @@ function attachSailsDashboardEvents(){
   if(search) search.oninput = ()=>{ state.search = search.value; render(); const el=document.getElementById('sailsSearch'); if(el){ el.focus(); el.selectionStart=el.value.length; } };
   const exportBtn = document.getElementById('sailsExportBtn');
   if(exportBtn) exportBtn.onclick = exportLedgerCSV;
+  const printBtn = document.getElementById('sailsPrintBtn');
+  if(printBtn) printBtn.onclick = printLedgerReport;
 }
 
 /* ============== SECRETARY DASHBOARD (approves Marshall submissions & resolve requests) ============== */
@@ -1289,7 +1292,8 @@ function ledgerHTML(){
     <h2 class="section-title">${ICON.list}The Ledger</h2>
     <p class="subtext">Full record of every violation logged.</p>
     <div class="fab-row" style="justify-content:flex-end;">
-      <button class="btn-sm gold" id="exportCsvBtn">${ICON.download}Export Report</button>
+      <button class="btn-sm gold" id="exportCsvBtn">${ICON.download}Excel</button>
+      <button class="btn-sm" id="printReportBtn" style="border:1px solid var(--line);background:#fff;">${ICON.list}Print / PDF</button>
     </div>
     <div class="search">
       ${ICON.search}<input id="ledgerSearch" placeholder="Search student or checkpoint…" value="${escapeHtml(state.search)}"/>
@@ -1326,6 +1330,8 @@ function ledgerHTML(){
 function attachLedgerEvents(){
   const exportBtn = document.getElementById('exportCsvBtn');
   if(exportBtn) exportBtn.onclick = exportLedgerCSV;
+  const printBtn = document.getElementById('printReportBtn');
+  if(printBtn) printBtn.onclick = printLedgerReport;
   const search = document.getElementById('ledgerSearch');
   if(search) search.oninput = ()=>{ state.search = search.value; render(); const el=document.getElementById('ledgerSearch'); el.focus(); el.selectionStart=el.value.length; };
   const filt = document.getElementById('ledgerFilter');
@@ -1810,20 +1816,9 @@ function xlsxThinBorder(){
   const b = {style:'thin', color:{argb:XLSX_THEME.line}};
   return {top:b,left:b,bottom:b,right:b};
 }
-async function exportLedgerCSV(){
-  if(state.ledger.length===0){ showToast('No violations to export yet'); return; }
-  if(typeof ExcelJS==='undefined'){ showToast('Could not load the report engine — check your connection'); return; }
-  showToast('Preparing report…');
-  try{
-    await buildAndDownloadLedgerReport();
-    showToast('Report downloaded');
-  }catch(err){
-    console.error('Export failed:', err);
-    showToast('Export failed: ' + (err && err.message ? err.message : 'unknown error'));
-  }
-}
-
-async function buildAndDownloadLedgerReport(){
+/* Shared data prep for both the Excel export and the print-ready report,
+   so the two outputs can never silently drift out of sync with each other. */
+function computeLedgerReportData(){
   const rows = state.ledger.map(v=>{
     const st = state.roster.find(s=>s.id===v.studentId);
     const cat = state.standard.find(c=>c.id===v.categoryId);
@@ -1854,6 +1849,27 @@ async function buildAndDownloadLedgerReport(){
   const bySection = {};
   rows.forEach(r=>{ bySection[r.section] = (bySection[r.section]||0)+1; });
   const sortedDates = rows.map(r=>r.date).filter(Boolean).sort();
+
+  return { rows, totalViolations, statusCounts, pendingCount, resolvedCount, studentsInvolved, topCheckpoints, bySection, sortedDates };
+}
+async function exportLedgerCSV(){
+  if(state.ledger.length===0){ showToast('No violations to export yet'); return; }
+  if(typeof ExcelJS==='undefined'){ showToast('Could not load the report engine — check your connection'); return; }
+  showToast('Preparing report…');
+  try{
+    await buildAndDownloadLedgerReport();
+    showToast('Report downloaded');
+  }catch(err){
+    console.error('Export failed:', err);
+    showToast('Export failed: ' + (err && err.message ? err.message : 'unknown error'));
+  }
+}
+
+async function buildAndDownloadLedgerReport(){
+  const {
+    rows, totalViolations, statusCounts, pendingCount, resolvedCount,
+    studentsInvolved, topCheckpoints, bySection, sortedDates
+  } = computeLedgerReportData();
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'ALPHA WATCH';
@@ -2068,6 +2084,177 @@ async function buildAndDownloadLedgerReport(){
   const blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const filename = `alpha-watch-violations-report-${todayISO()}.xlsx`;
   downloadBlob(blob, filename);
+}
+
+/* ===== Print-ready / PDF report =====
+   Builds a standalone print document (own <html>) in a new tab and invokes
+   the browser's print dialog, where "Save as PDF" produces a properly
+   paginated PDF — no PDF library needed, and it always matches whatever
+   the browser's print engine renders. Rows are grouped by status exactly
+   like the Excel export, with @page rules and a repeating table header so
+   long ledgers paginate cleanly instead of splitting a row mid-page. */
+function hexFromArgb(argb){ return '#' + argb.slice(2); }
+function escapePrintHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function printLedgerReport(){
+  if(state.ledger.length===0){ showToast('No violations to print yet'); return; }
+  const {
+    rows, totalViolations, statusCounts, pendingCount, resolvedCount,
+    studentsInvolved, topCheckpoints, bySection, sortedDates
+  } = computeLedgerReportData();
+
+  const navy = hexFromArgb(XLSX_THEME.navy);
+  const gold = hexFromArgb(XLSX_THEME.gold);
+  const ink = hexFromArgb(XLSX_THEME.ink);
+  const inkSoft = hexFromArgb(XLSX_THEME.inkSoft);
+  const line = hexFromArgb(XLSX_THEME.line);
+  const cream = hexFromArgb(XLSX_THEME.cream);
+
+  const navyDark = hexFromArgb(XLSX_THEME.navyDark);
+  const statBoxes = [
+    {label:'Total Violations', value:totalViolations, labelBg:navy, labelText:'#FFFFFF', valueBg:navyDark, valueText:'#FFFFFF'},
+    {label:'Active Pending', value:pendingCount, labelBg:hexFromArgb(XLSX_THEME.pendingBg), labelText:hexFromArgb(XLSX_THEME.pending), valueBg:hexFromArgb(XLSX_THEME.pendingBg), valueText:hexFromArgb(XLSX_THEME.pending)},
+    {label:'Resolved', value:resolvedCount, labelBg:hexFromArgb(XLSX_THEME.resolvedBg), labelText:hexFromArgb(XLSX_THEME.resolved), valueBg:hexFromArgb(XLSX_THEME.resolvedBg), valueText:hexFromArgb(XLSX_THEME.resolved)},
+    {label:'Students Involved', value:studentsInvolved, labelBg:hexFromArgb(XLSX_THEME.goldLight), labelText:navy, valueBg:hexFromArgb(XLSX_THEME.goldLight), valueText:navy},
+  ];
+
+  const statusRows = XLSX_STATUS_ORDER.map(status=>{
+    const meta = xlsxStatusMeta(status);
+    return `<tr><td class="swatch" style="background:${hexFromArgb(meta.bg)};"></td><td>${escapePrintHtml(meta.label)}</td><td class="num">${statusCounts[status]||0}</td></tr>`;
+  }).join('');
+
+  const topCheckpointRows = topCheckpoints.map(([title,count])=>
+    `<tr><td>${escapePrintHtml(title)}</td><td class="num">${count}</td></tr>`).join('');
+  const bySectionRows = Object.entries(bySection).sort((a,b)=>b[1]-a[1]).map(([section,count])=>
+    `<tr><td>${escapePrintHtml(section)}</td><td class="num">${count}</td></tr>`).join('');
+
+  const headers = ['#','Student','Section','Checkpoint','Date','Status','Reported By','Approved By','Forwarded By','Resolved By','Sanction'];
+  let bodyRows = '';
+  let runningIdx = 0;
+  XLSX_STATUS_ORDER.forEach(status=>{
+    const groupRows = rows.filter(r=>r.status===status).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+    if(groupRows.length===0) return;
+    const meta = xlsxStatusMeta(status);
+    bodyRows += `<tr class="band" style="background:${hexFromArgb(meta.bg)};color:${hexFromArgb(meta.text)};"><td colspan="${headers.length}">${escapePrintHtml(meta.label.toUpperCase())} · ${groupRows.length} record${groupRows.length===1?'':'s'}</td></tr>`;
+    groupRows.forEach(row=>{
+      runningIdx++;
+      bodyRows += `<tr>
+        <td class="num muted">${runningIdx}</td>
+        <td>${escapePrintHtml(row.student)}</td>
+        <td>${escapePrintHtml(row.section)}</td>
+        <td>${escapePrintHtml(row.checkpoint)}</td>
+        <td>${escapePrintHtml(formatDate(row.date))}</td>
+        <td><span class="chip" style="background:${hexFromArgb(meta.bg)};color:${hexFromArgb(meta.text)};">${escapePrintHtml(meta.label)}</span></td>
+        <td>${escapePrintHtml(row.reportedBy)}</td>
+        <td>${escapePrintHtml(row.approvedBy)}</td>
+        <td>${escapePrintHtml(row.forwardedBy)}</td>
+        <td>${escapePrintHtml(row.resolvedBy)}</td>
+        <td>${escapePrintHtml(row.sanction)}</td>
+      </tr>`;
+    });
+  });
+
+  const generatedBy = (state.session && state.session.name) ? `${escapePrintHtml(state.session.name)} (${escapePrintHtml(roleLabel(state.session.role))})` : '—';
+  const period = sortedDates.length ? `${formatDate(sortedDates[0])} – ${formatDate(sortedDates[sortedDates.length-1])}` : '—';
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>Alpha Watch — Discipline Ledger — ${todayISO()}</title>
+<style>
+  @page { size: letter landscape; margin: 0.5in; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:${ink}; margin:0; padding:0; }
+  .sheet { padding: 0 4px; }
+  .head { display:table; width:100%; margin-bottom:4px; }
+  .head .logo-cell { display:table-cell; width:52px; vertical-align:middle; }
+  .head .title-cell { display:table-cell; vertical-align:middle; }
+  .head img { width:44px; height:44px; }
+  .head h1 { font-family: Georgia, serif; font-size:22px; color:${navy}; margin:0; }
+  .head p { margin:2px 0 0; font-size:12px; color:${inkSoft}; font-style:italic; }
+  .meta { display:table; width:100%; table-layout:fixed; margin:14px 0; font-size:12px; }
+  .meta .meta-cell { display:table-cell; padding-right:20px; }
+  .meta b { color:${inkSoft}; display:block; font-size:10px; text-transform:uppercase; letter-spacing:.04em; margin-bottom:2px; }
+  .stat-row { display:table; width:100%; table-layout:fixed; border-spacing:8px 0; margin-bottom:18px; }
+  .stat-box { display:table-cell; border-radius:8px; border:1px solid ${line}; overflow:hidden; }
+  .stat-box .lbl { padding:6px 8px; font-size:10px; font-weight:700; text-align:center; }
+  .stat-box .val { padding:8px; font-size:22px; font-weight:700; text-align:center; }
+  .panels { display:table; width:100%; table-layout:fixed; border-spacing:24px 0; margin-bottom:20px; page-break-after: always; }
+  .panel { display:table-cell; vertical-align:top; }
+  .panel h2 { font-size:13px; color:${navy}; margin:0 0 8px; }
+  .panel table { width:100%; border-collapse:collapse; font-size:12px; }
+  .panel td { padding:4px 6px; border-bottom:1px solid ${line}; }
+  .panel td.swatch { width:14px; padding:0; }
+  .panel td.num { text-align:right; font-weight:700; color:${navy}; width:40px; }
+  table.ledger { width:100%; border-collapse:collapse; font-size:10.5px; }
+  table.ledger thead { display: table-header-group; }
+  table.ledger th { background:${navy}; color:#fff; text-align:left; padding:6px 6px; font-size:10px; border:1px solid ${navy}; }
+  table.ledger td { padding:5px 6px; border:1px solid ${line}; vertical-align:middle; }
+  table.ledger td.num { text-align:center; }
+  table.ledger td.muted { color:${inkSoft}; }
+  table.ledger tr.band td { font-weight:700; font-size:11px; padding:5px 8px; border:none; }
+  table.ledger tbody tr:not(.band) { page-break-inside: avoid; }
+  table.ledger .chip { display:inline-block; padding:2px 8px; border-radius:999px; font-weight:700; font-size:9.5px; white-space:nowrap; }
+  .footer-note { margin-top:10px; font-size:9.5px; color:${inkSoft}; }
+  @media print {
+    .no-print { display:none; }
+  }
+  .print-bar { position:sticky; top:0; background:#fff; padding:10px 4px; margin-bottom:6px; border-bottom:1px solid ${line}; display:flex; gap:8px; justify-content:flex-end; }
+  .print-bar button { font-family:inherit; font-size:13px; font-weight:600; padding:8px 16px; border-radius:8px; border:1px solid ${line}; background:${navy}; color:#fff; cursor:pointer; }
+  .print-bar button.secondary { background:#fff; color:${ink}; }
+</style>
+</head>
+<body>
+  <div class="print-bar no-print">
+    <button class="secondary" onclick="window.close()">Close</button>
+    <button onclick="window.print()">Print / Save as PDF</button>
+  </div>
+  <div class="sheet">
+    <div class="head">
+      <div class="logo-cell"><img src="${LOGO_URI}" alt="Alpha logo"/></div>
+      <div class="title-cell">
+        <h1>ALPHA WATCH — Discipline Ledger</h1>
+        <p>BSMT 1-Alpha · Batch 28 — grouped by status per the Line of Authority</p>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="meta-cell"><b>Generated</b>${escapePrintHtml(todayLongDate())}</div>
+      <div class="meta-cell"><b>Generated By</b>${generatedBy}</div>
+      <div class="meta-cell"><b>Report Period</b>${escapePrintHtml(period)}</div>
+    </div>
+    <div class="stat-row">
+      ${statBoxes.map(b=>`<div class="stat-box"><div class="lbl" style="background:${b.labelBg};color:${b.labelText};">${escapePrintHtml(b.label)}</div><div class="val" style="background:${b.valueBg};color:${b.valueText};">${b.value}</div></div>`).join('')}
+    </div>
+    <div class="panels">
+      <div class="panel">
+        <h2>Status Breakdown — Line of Authority</h2>
+        <table>${statusRows}</table>
+      </div>
+      <div class="panel">
+        <h2>Top Checkpoints</h2>
+        <table>${topCheckpointRows || '<tr><td>—</td></tr>'}</table>
+      </div>
+      <div class="panel">
+        <h2>By Stewardship Section</h2>
+        <table>${bySectionRows || '<tr><td>—</td></tr>'}</table>
+      </div>
+    </div>
+    <table class="ledger">
+      <thead><tr>${headers.map(h=>`<th>${escapePrintHtml(h)}</th>`).join('')}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+    <p class="footer-note">Generated by ALPHA WATCH on ${escapePrintHtml(todayLongDate())}. This report reflects the Ledger at the time of generation.</p>
+  </div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  if(!win){ showToast('Please allow pop-ups to print the report'); return; }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  showToast('Opening printable report…');
 }
 
 /* Mobile-safe blob download: tries the standard anchor-click approach first,
