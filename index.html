@@ -899,7 +899,7 @@ function sailsDashboardHTML(){
     <div class="fab-row">
       <div class="search" style="flex:1;margin-bottom:0;">${ICON.search}<input id="sailsSearch" placeholder="Search name or section…" value="${escapeHtml(state.search)}"/></div>
       <button class="btn-sm gold" id="sailsExportBtn">${ICON.download}Excel</button>
-      <button class="btn-sm" id="sailsPrintBtn" style="border:1px solid var(--line);background:#fff;">${ICON.list}Print / PDF</button>
+      <button class="btn-sm ghost" id="sailsPrintBtn">${ICON.list}Print / PDF</button>
     </div>
 
     <div class="card">
@@ -1293,7 +1293,7 @@ function ledgerHTML(){
     <p class="subtext">Full record of every violation logged.</p>
     <div class="fab-row" style="justify-content:flex-end;">
       <button class="btn-sm gold" id="exportCsvBtn">${ICON.download}Excel</button>
-      <button class="btn-sm" id="printReportBtn" style="border:1px solid var(--line);background:#fff;">${ICON.list}Print / PDF</button>
+      <button class="btn-sm ghost" id="printReportBtn">${ICON.list}Print / PDF</button>
     </div>
     <div class="search">
       ${ICON.search}<input id="ledgerSearch" placeholder="Search student or checkpoint…" value="${escapeHtml(state.search)}"/>
