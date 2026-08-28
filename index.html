@@ -315,10 +315,6 @@
   }
   .std-item h3{font-size:14px;margin:0 0 3px;color:var(--ink);}
   .std-item p{font-size:12px;color:var(--ink-soft);margin:0;line-height:1.5;}
-  .std-item .sanction{
-    margin-top:9px;font-size:11.5px;background:var(--pending-bg);color:var(--gold-dim);
-    padding:6px 10px;border-radius:8px;display:inline-block;font-weight:700;
-  }
 
   form .field textarea{resize:vertical;min-height:60px;}
   .modal-back{
@@ -471,6 +467,16 @@
   .toggle-btn.pass.on{background:var(--resolved-bg);border-color:var(--resolved);color:var(--resolved);}
   .toggle-btn.fail.on{background:var(--danger-bg);border-color:var(--danger);color:var(--danger);}
   .insp-tag{color:var(--royal);font-weight:700;}
+
+  /* ---------- Student history modal ---------- */
+  .history-list{display:flex;flex-direction:column;gap:10px;max-height:48vh;overflow-y:auto;}
+  .history-item{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--paper);}
+  .history-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+  .history-top .history-date{font-size:11.5px;color:var(--ink-soft);}
+  .history-check{display:block;font-size:14px;color:var(--ink);margin-bottom:2px;}
+  .history-sanction{display:block;font-size:12.5px;color:var(--gold-dim);font-weight:700;margin-bottom:4px;}
+  .history-note{display:block;font-size:11.5px;font-style:italic;color:var(--ink-soft);margin-bottom:4px;}
+  .history-chain{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:10.5px;color:var(--ink-soft);border-top:1px dashed var(--line);padding-top:6px;}
 </style>
 </head>
 <body>
@@ -757,7 +763,7 @@ function publicHTML(){
                       <span class="pd-check">${escapeHtml(cat?cat.title:'Unknown checkpoint')}</span>
                       <span class="pd-date">${formatDate(v.date)}</span>
                     </div>
-                    <span class="pd-sanction">${escapeHtml(v.sanction||'—')}</span>
+                    <span class="pd-sanction">${escapeHtml(getViolationSanction(v))}</span>
                   </div>`;
                 }).join('')}
               </div>` : ''
@@ -807,6 +813,51 @@ function statusMeta(status){
 function statusChipHTML(v){
   const m = statusMeta(v.status);
   return `<span class="status-chip ${m.cls}">${m.icon}${m.label}</span>`;
+}
+
+/* ============== DEGREES OF VIOLATION ==============
+   Progressive discipline policy: a student's 1st approved offense (combined
+   across every checkpoint, not tracked separately per checkpoint) draws a
+   verbal warning; every offense after that draws the same fixed fine.
+   Nothing here is stored on the violation record — it's always computed
+   fresh from the current ledger, so editing or removing an earlier record
+   automatically renumbers everything that comes after it. */
+const REPEAT_OFFENSE_FINE = 50; // ₱ — fixed fine from the 2nd offense onward
+function ordinal(n){
+  const rem100 = n % 100;
+  if(rem100>=11 && rem100<=13) return n+'th';
+  switch(n%10){
+    case 1: return n+'st';
+    case 2: return n+'nd';
+    case 3: return n+'rd';
+    default: return n+'th';
+  }
+}
+function offenseSanctionLabel(offenseNumber){
+  if(!offenseNumber) return 'Awaiting approval';
+  if(offenseNumber===1) return '1st Offense: Verbal Warning';
+  return `${ordinal(offenseNumber)} Offense: Fine (₱${REPEAT_OFFENSE_FINE})`;
+}
+/* Returns every violation belonging to a student, oldest first, each
+   annotated with its offenseNumber (null until the Secretary has approved
+   it — an awaiting-approval submission doesn't count toward the tally yet). */
+function getStudentOffenseTimeline(studentId){
+  const sorted = state.ledger
+    .filter(v=>v.studentId===studentId)
+    .slice()
+    .sort((a,b)=> (a.date||'').localeCompare(b.date||'') || a.id.localeCompare(b.id));
+  let n = 0;
+  return sorted.map(v=>{
+    const offenseNumber = v.status==='awaiting_approval' ? null : ++n;
+    return {...v, offenseNumber};
+  });
+}
+function getViolationOffenseNumber(v){
+  const match = getStudentOffenseTimeline(v.studentId).find(x=>x.id===v.id);
+  return match ? match.offenseNumber : null;
+}
+function getViolationSanction(v){
+  return offenseSanctionLabel(getViolationOffenseNumber(v));
 }
 function currentDashboardHTML(){
   const role = state.session.role;
@@ -1167,8 +1218,10 @@ function rosterHTML(){
         filtered.map(s=>{
           const count = state.ledger.filter(v=>v.studentId===s.id && v.status==='pending').length;
           return `<div class="list-item">
-            ${avatarHTML(s)}
-            <div class="li-main"><b>${escapeHtml(s.name)}</b>${(s.section||count)?`<span>${escapeHtml(s.section||'')}${s.section&&count?' · ':''}${count?`${count} pending`:''}</span>`:''}</div>
+            <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;cursor:pointer;" data-view-history="${s.id}">
+              ${avatarHTML(s)}
+              <div class="li-main"><b>${escapeHtml(s.name)}</b>${(s.section||count)?`<span>${escapeHtml(s.section||'')}${s.section&&count?' · ':''}${count?`${count} pending`:''}</span>`:''}</div>
+            </div>
             ${isMarshall?`<button class="btn-sm gold" data-inspect-student="${s.id}" style="padding:6px 10px;">${ICON.checklist}Inspect</button>`:''}
             ${isMayor?`<button class="btn-sm ghost" data-edit-student="${s.id}" style="padding:6px 8px;">${ICON.edit}</button>
             <button class="btn-sm danger" data-del-student="${s.id}" style="padding:6px 8px;">${ICON.trash}</button>`:''}
@@ -1183,6 +1236,9 @@ function attachRosterEvents(){
   if(search) search.oninput = ()=>{ state.search = search.value; render(); document.getElementById('rosterSearch').focus(); document.getElementById('rosterSearch').selectionStart = document.getElementById('rosterSearch').value.length; };
   const addBtn = document.getElementById('addStudentBtn');
   if(addBtn) addBtn.onclick = ()=>{ state.modal={type:'student', data:{name:''}}; render(); };
+  document.querySelectorAll('[data-view-history]').forEach(el=>{
+    el.onclick = ()=>{ state.modal={type:'studentHistory', data:{studentId:el.dataset.viewHistory}}; render(); };
+  });
   document.querySelectorAll('[data-edit-student]').forEach(b=>{
     b.onclick = ()=>{ const s = state.roster.find(x=>x.id===b.dataset.editStudent); state.modal={type:'student', data:{...s}}; render(); };
   });
@@ -1207,7 +1263,7 @@ function attachRosterEvents(){
         data:{
           studentId: s.id,
           studentName: s.name,
-          checklist: state.standard.map(c=>({checkpointId:c.id, title:c.title, local:c.local, rule:c.rule, sanction:c.sanction, status:'pass', note:''}))
+          checklist: state.standard.map(c=>({checkpointId:c.id, title:c.title, local:c.local, rule:c.rule, status:'pass', note:''}))
         }
       };
       render();
@@ -1229,7 +1285,6 @@ function standardHTML(){
           <div style="flex:1;">
             <h3>${escapeHtml(c.title)}${c.local && c.local!==c.title?` <span style="color:var(--ink-soft);font-weight:500;font-size:11.5px;">(${escapeHtml(c.local)})</span>`:''}</h3>
             <p>${escapeHtml(c.rule)}</p>
-            <div class="sanction">${escapeHtml(c.sanction)}</div>
           </div>
           ${isMayor?`<div style="display:flex;flex-direction:column;gap:6px;">
             <button class="btn-sm ghost" data-edit-std="${c.id}" style="padding:6px 8px;">${ICON.edit}</button>
@@ -1242,7 +1297,7 @@ function standardHTML(){
 }
 function attachStandardEvents(){
   const addBtn = document.getElementById('addStdBtn');
-  if(addBtn) addBtn.onclick = ()=>{ state.modal={type:'standard', data:{title:'',local:'',rule:'',sanction:'1st Offense: Verbal Warning'}}; render(); };
+  if(addBtn) addBtn.onclick = ()=>{ state.modal={type:'standard', data:{title:'',local:'',rule:''}}; render(); };
   document.querySelectorAll('[data-edit-std]').forEach(b=>{
     b.onclick = ()=>{ const c = state.standard.find(x=>x.id===b.dataset.editStd); state.modal={type:'standard', data:{...c}}; render(); };
   });
@@ -1284,10 +1339,7 @@ function logHTML(){
         <label>Date</label>
         <input type="date" id="lf_date" value="${todayISO()}" required/>
       </div>
-      <div class="field">
-        <label>Sanction</label>
-        <input type="text" id="lf_sanction" placeholder="e.g. 1st Offense: Verbal Warning"/>
-      </div>
+      <p class="subtext" style="margin:-4px 0 4px;">Sanction is assigned automatically based on this student's offense count — 1st offense is a verbal warning, every offense after that is a ₱${REPEAT_OFFENSE_FINE} fine.</p>
       <div class="field">
         <label>Reported By</label>
         <input type="text" id="lf_reporter" value="${escapeHtml(state.session.name)}" required/>
@@ -1325,10 +1377,6 @@ function attachLogEvents(){
   const form = document.getElementById('logForm');
   if(!form) return;
   const catSel = document.getElementById('lf_category');
-  catSel.onchange = ()=>{
-    const c = state.standard.find(x=>x.id===catSel.value);
-    if(c) document.getElementById('lf_sanction').value = c.sanction;
-  };
   const studentSearch = document.getElementById('lf_student_search');
   const studentIdInput = document.getElementById('lf_student_id');
   if(studentSearch){
@@ -1348,7 +1396,6 @@ function attachLogEvents(){
       studentId,
       categoryId: document.getElementById('lf_category').value,
       date: document.getElementById('lf_date').value,
-      sanction: document.getElementById('lf_sanction').value || 'Verbal Warning',
       reportedBy: document.getElementById('lf_reporter').value.trim() || state.session.name,
       status: 'pending',
     };
@@ -1442,8 +1489,8 @@ function ledgerHTML(){
             ${avatarHTML({name:v.studentName, photo:v.studentPhoto})}
             <div class="li-main">
               <b>${escapeHtml(v.studentName)}</b>
-              <span>${escapeHtml(v.catTitle)} · ${formatDate(v.date)} · ${escapeHtml(v.sanction)}</span>
-              <span style="display:block;color:var(--ink-soft);">Reported by ${escapeHtml(v.reportedBy)}${v.source==='inspection'?' · <span class="insp-tag">Inspection</span>':''}</span>
+              <span>${escapeHtml(v.catTitle)} · ${formatDate(v.date)} · ${escapeHtml(getViolationSanction(v))}</span>
+              <span style="display:block;color:var(--ink-soft);">Reported by ${escapeHtml(v.reportedBy)}${v.source==='inspection'?' · <span class="insp-tag">Inspection</span>':''}${v.note?` · <span style="font-style:italic;">${escapeHtml(v.note)}</span>`:''}</span>
               ${violationWorkflowNoteHTML(v)}
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
@@ -1637,10 +1684,57 @@ function renderModal(){
       <div class="field"><label>Title</label><input id="m_title" value="${escapeHtml(d.title||'')}" placeholder="e.g. T-Shirt"/></div>
       <div class="field"><label>Local Name (optional)</label><input id="m_local" value="${escapeHtml(d.local||'')}" placeholder="e.g. Buhok"/></div>
       <div class="field"><label>Rule</label><textarea id="m_rule" placeholder="Describe the requirement">${escapeHtml(d.rule||'')}</textarea></div>
-      <div class="field"><label>Standard Sanction</label><input id="m_sanction" value="${escapeHtml(d.sanction||'')}" placeholder="e.g. 1st Offense: Verbal Warning"/></div>
+      <p class="subtext" style="margin-top:-4px;">Sanctions are handled automatically by the class's progressive discipline policy — 1st offense is a verbal warning, every offense after that is a ₱${REPEAT_OFFENSE_FINE} fine, counted across all checkpoints.</p>
       <div class="modal-actions">
         <button class="btn-sm ghost" id="modalCancel" style="flex:1;justify-content:center;">Cancel</button>
         <button class="btn-primary" id="modalSave">Save</button>
+      </div>`;
+  } else if(state.modal.type==='studentHistory'){
+    const d = state.modal.data;
+    const student = state.roster.find(s=>s.id===d.studentId);
+    const timeline = getStudentOffenseTimeline(d.studentId).slice().reverse();
+    const approvedCount = timeline.filter(v=>v.offenseNumber).length;
+    const nextLabel = offenseSanctionLabel(approvedCount+1);
+    inner = `
+      <button class="close-x" id="modalClose">✕</button>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+        ${avatarHTML(student||{name:'?'}, 'width:48px;height:48px;font-size:17px;flex-shrink:0;')}
+        <div style="min-width:0;">
+          <h2 class="section-title" style="margin:0;font-size:18px;">${escapeHtml(student?student.name:'Unknown student')}</h2>
+          <span class="subtext" style="margin:0;">${escapeHtml((student&&student.section)||'—')}</span>
+        </div>
+      </div>
+      <div class="card" style="margin:14px 0;padding:12px 14px;background:var(--cream);">
+        <p class="subtext" style="margin:0;">
+          <b style="color:var(--ink);">${approvedCount}</b> approved offense${approvedCount===1?'':'s'} on record.
+          Next offense would be: <b style="color:var(--gold-dim);">${escapeHtml(nextLabel)}</b>
+        </p>
+      </div>
+      <h3 style="font-size:13px;color:var(--navy-950);margin:0 0 8px;">Violation History</h3>
+      ${timeline.length===0? emptyState('No violations on record','This student has a clean record so far.', ICON.check) :
+        `<div class="history-list">
+        ${timeline.map(v=>{
+          const cat = state.standard.find(c=>c.id===v.categoryId);
+          return `<div class="history-item">
+            <div class="history-top">
+              ${statusChipHTML(v)}
+              <span class="history-date">${formatDate(v.date)}</span>
+            </div>
+            <b class="history-check">${escapeHtml(cat?cat.title:'Unknown checkpoint')}</b>
+            <span class="history-sanction">${escapeHtml(offenseSanctionLabel(v.offenseNumber))}</span>
+            ${v.note?`<span class="history-note">Note: ${escapeHtml(v.note)}</span>`:''}
+            <div class="history-chain">
+              <span>Inspected by ${escapeHtml(v.reportedBy||'—')}</span>
+              ${v.approvedBy?`<span>Approved by ${escapeHtml(v.approvedBy)}</span>`:''}
+              ${v.forwardedBy?`<span>Forwarded by ${escapeHtml(v.forwardedBy)}</span>`:''}
+              ${v.resolvedBy?`<span>Resolved by ${escapeHtml(v.resolvedBy)}</span>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+        </div>`
+      }
+      <div class="modal-actions">
+        <button class="btn-primary" id="modalSave" style="flex:1;justify-content:center;">Close</button>
       </div>`;
   } else if(state.modal.type==='account'){
     const d = state.modal.data;
@@ -1766,6 +1860,11 @@ function closeModal(){ state.modal=null; render(); }
 async function saveModal(){
   const type = state.modal.type;
   const d = state.modal.data;
+  if(type==='studentHistory'){
+    state.modal = null;
+    render();
+    return;
+  }
   if(type==='inspect'){
     await sendInspectionReport(d);
     return;
@@ -1787,13 +1886,12 @@ async function saveModal(){
     const title = document.getElementById('m_title').value.trim();
     const local = document.getElementById('m_local').value.trim();
     const rule = document.getElementById('m_rule').value.trim();
-    const sanction = document.getElementById('m_sanction').value.trim() || 'Verbal Warning';
     if(!title){ showToast('Title is required'); return; }
     if(d.id){
       const c = state.standard.find(x=>x.id===d.id);
-      c.title=title; c.local=local; c.rule=rule; c.sanction=sanction;
+      c.title=title; c.local=local; c.rule=rule;
     } else {
-      state.standard.push({id:'std_'+Date.now(), title, local, rule, sanction});
+      state.standard.push({id:'std_'+Date.now(), title, local, rule});
     }
     await saveShared('standard', state.standard);
     showToast('Checkpoint saved');
@@ -1854,7 +1952,7 @@ async function sendInspectionReport(d){
       studentId: d.studentId,
       categoryId: c.checkpointId,
       date: today,
-      sanction: c.note ? `${c.sanction} — ${c.note}` : c.sanction,
+      note: c.note || '',
       reportedBy: state.session.name,
       status: 'awaiting_approval',
       source: 'inspection',
@@ -1956,7 +2054,9 @@ function computeLedgerReportData(){
       section: st ? (st.section||'—') : '—',
       checkpoint: cat ? cat.title : 'Unknown',
       date: v.date,
-      sanction: v.sanction || '—',
+      sanction: getViolationSanction(v),
+      offenseNumber: getViolationOffenseNumber(v),
+      note: v.note || '',
       reportedBy: v.reportedBy || '—',
       approvedBy: v.approvedBy || '—',
       forwardedBy: v.forwardedBy || '—',
@@ -2138,10 +2238,10 @@ async function buildAndDownloadLedgerReport(){
     pageSetup:{orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0}
   });
   sheet.columns = [
-    {width:9}, {width:22}, {width:16}, {width:20}, {width:13}, {width:20}, {width:16}, {width:17}, {width:17}, {width:19}, {width:24}
+    {width:9}, {width:22}, {width:16}, {width:20}, {width:13}, {width:20}, {width:16}, {width:17}, {width:17}, {width:19}, {width:11}, {width:26}
   ];
-  const LAST_COL = 10; // column J — Sanction
-  const colLetters = ['A','B','C','D','E','F','G','H','I','J'];
+  const LAST_COL = 11; // column K — Sanction
+  const colLetters = ['A','B','C','D','E','F','G','H','I','J','K'];
 
   safeMerge(sheet, `B2:${colLetters[LAST_COL-1]}2`);
   sheet.addImage(logoImageId, { tl:{col:0.15, row:0.32}, ext:{width:30, height:30} });
@@ -2158,7 +2258,7 @@ async function buildAndDownloadLedgerReport(){
   headSub.alignment = {indent:6};
 
   const headerRowNum = 5;
-  const headers = ['#','Student','Section','Checkpoint','Date','Status','Reported By','Approved By','Forwarded By','Resolved By','Sanction'];
+  const headers = ['#','Student','Section','Checkpoint','Date','Status','Reported By','Approved By','Forwarded By','Resolved By','Offense #','Sanction'];
   const headerRow = sheet.getRow(headerRowNum);
   headers.forEach((h,i)=>{
     const cell = headerRow.getCell(i+1);
@@ -2193,12 +2293,12 @@ async function buildAndDownloadLedgerReport(){
       runningIdx++;
       const excelRow = sheet.getRow(r);
       excelRow.outlineLevel = 1;
-      const values = [runningIdx, row.student, row.section, row.checkpoint, formatDate(row.date), meta.label, row.reportedBy, row.approvedBy, row.forwardedBy, row.resolvedBy, row.sanction];
+      const values = [runningIdx, row.student, row.section, row.checkpoint, formatDate(row.date), meta.label, row.reportedBy, row.approvedBy, row.forwardedBy, row.resolvedBy, row.offenseNumber ? ordinal(row.offenseNumber) : '—', row.sanction];
       values.forEach((val,ci)=>{
         const cell = excelRow.getCell(ci+1);
         cell.value = val;
         cell.border = xlsxThinBorder();
-        cell.alignment = {vertical:'middle', horizontal: ci===0?'center':'left', wrapText: ci===3 || ci===10};
+        cell.alignment = {vertical:'middle', horizontal: ci===0?'center':'left', wrapText: ci===3 || ci===11};
         cell.fill = xlsxFill(i%2===0 ? XLSX_THEME.white : XLSX_THEME.cream);
         if(ci===0) cell.font = {color:{argb:XLSX_THEME.inkSoft}};
         if(ci===5){ cell.font = {bold:true, color:{argb:meta.text}}; cell.fill = xlsxFill(meta.bg); }
@@ -2257,7 +2357,7 @@ function printLedgerReport(){
   const bySectionRows = Object.entries(bySection).sort((a,b)=>b[1]-a[1]).map(([section,count])=>
     `<tr><td>${escapePrintHtml(section)}</td><td class="num">${count}</td></tr>`).join('');
 
-  const headers = ['#','Student','Section','Checkpoint','Date','Status','Reported By','Approved By','Forwarded By','Resolved By','Sanction'];
+  const headers = ['#','Student','Section','Checkpoint','Date','Status','Reported By','Approved By','Forwarded By','Resolved By','Offense #','Sanction'];
   let bodyRows = '';
   let runningIdx = 0;
   XLSX_STATUS_ORDER.forEach(status=>{
@@ -2278,6 +2378,7 @@ function printLedgerReport(){
         <td>${escapePrintHtml(row.approvedBy)}</td>
         <td>${escapePrintHtml(row.forwardedBy)}</td>
         <td>${escapePrintHtml(row.resolvedBy)}</td>
+        <td class="num">${row.offenseNumber ? escapePrintHtml(ordinal(row.offenseNumber)) : '—'}</td>
         <td>${escapePrintHtml(row.sanction)}</td>
       </tr>`;
     });
