@@ -963,7 +963,7 @@ function statusChipHTML(v){
    Nothing here is stored on the violation record — it's always computed
    fresh from the current ledger, so editing or removing an earlier record
    automatically renumbers everything that comes after it. */
-const REPEAT_OFFENSE_FINE = 50; // ₱ — fixed fine from the 2nd offense onward
+const REPEAT_OFFENSE_FINE = 25; // ₱ — fixed fine from the 2nd offense onward
 function ordinal(n){
   const rem100 = n % 100;
   if(rem100>=11 && rem100<=13) return n+'th';
