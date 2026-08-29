@@ -2554,7 +2554,7 @@ async function buildAndDownloadLedgerReport(){
   headSub.alignment = {indent:6};
 
   const headerRowNum = 5;
-  const headers = ['#','Student','Section','Checkpoint','Date','Status','Reported By','Approved By','Forwarded By','Resolved By','Offense #','Sanction'];
+  const headers = ['#','Student','Section','Checkpoint','Date & Time','Status','Reported By','Approved By','Forwarded By','Resolved By','Offense #','Sanction'];
   const headerRow = sheet.getRow(headerRowNum);
   headers.forEach((h,i)=>{
     const cell = headerRow.getCell(i+1);
@@ -2653,7 +2653,7 @@ function printLedgerReport(){
   const bySectionRows = Object.entries(bySection).sort((a,b)=>b[1]-a[1]).map(([section,count])=>
     `<tr><td>${escapePrintHtml(section)}</td><td class="num">${count}</td></tr>`).join('');
 
-  const headers = ['#','Student','Section','Checkpoint','Date','Status','Reported By','Approved By','Forwarded By','Resolved By','Offense #','Sanction'];
+  const headers = ['#','Student','Section','Checkpoint','Date & Time','Status','Reported By','Approved By','Forwarded By','Resolved By','Offense #','Sanction'];
   let bodyRows = '';
   let runningIdx = 0;
   XLSX_STATUS_ORDER.forEach(status=>{
