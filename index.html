@@ -902,7 +902,7 @@ function publicHTML(){
                   return `<div class="public-detail-row">
                     <div class="pd-top">
                       <span class="pd-check">${escapeHtml(cat?cat.title:'Unknown checkpoint')}</span>
-                      <span class="pd-date">${formatDate(v.date)}</span>
+                      <span class="pd-date">${formatDateTime(v.date, v.time)}</span>
                     </div>
                     <span class="pd-sanction">${escapeHtml(getViolationSanction(v))}</span>
                   </div>`;
@@ -1156,7 +1156,7 @@ function dashboardHTML(){
           const cat = state.standard.find(c=>c.id===v.categoryId);
           return `<div class="list-item">
             ${avatarHTML(st)}
-            <div class="li-main"><b>${st?escapeHtml(st.name):'Unknown student'}</b><span>${cat?escapeHtml(cat.title):'—'} · ${formatDate(v.date)} · by ${escapeHtml(v.reportedBy)}</span></div>
+            <div class="li-main"><b>${st?escapeHtml(st.name):'Unknown student'}</b><span>${cat?escapeHtml(cat.title):'—'} · ${formatDateTime(v.date, v.time)} · by ${escapeHtml(v.reportedBy)}</span></div>
             ${statusChipHTML(v)}
           </div>`;
         }).join('')
@@ -1200,7 +1200,7 @@ function marshallDashboardHTML(){
           const cat = state.standard.find(c=>c.id===v.categoryId);
           return `<div class="list-item">
             ${avatarHTML(st)}
-            <div class="li-main"><b>${st?escapeHtml(st.name):'Unknown student'}</b><span>${cat?escapeHtml(cat.title):'—'} · ${formatDate(v.date)} · by ${escapeHtml(v.reportedBy)}</span></div>
+            <div class="li-main"><b>${st?escapeHtml(st.name):'Unknown student'}</b><span>${cat?escapeHtml(cat.title):'—'} · ${formatDateTime(v.date, v.time)} · by ${escapeHtml(v.reportedBy)}</span></div>
             ${statusChipHTML(v)}
           </div>`;
         }).join('')
@@ -1274,7 +1274,7 @@ function queueItemHTML(v, actionsHTML){
         ${avatarHTML(st, 'width:34px;height:34px;font-size:13px;')}
         <div style="flex:1;">
           <b style="font-size:13.5px;display:block;">${st?escapeHtml(st.name):'Unknown student'}</b>
-          <span style="font-size:11.5px;color:var(--ink-soft);">${cat?escapeHtml(cat.title):'—'} · ${formatDate(v.date)} · by ${escapeHtml(v.reportedBy)}</span>
+          <span style="font-size:11.5px;color:var(--ink-soft);">${cat?escapeHtml(cat.title):'—'} · ${formatDateTime(v.date, v.time)} · by ${escapeHtml(v.reportedBy)}</span>
         </div>
         ${statusChipHTML(v)}
       </div>
@@ -1498,6 +1498,10 @@ function logHTML(){
         <label>Date</label>
         <input type="date" id="lf_date" value="${todayISO()}" required/>
       </div>
+      <div class="field">
+        <label>Time</label>
+        <input type="time" id="lf_time" value="${nowTimeHHMM()}" required/>
+      </div>
       <p class="subtext" style="margin:-4px 0 4px;">Sanction is assigned automatically based on this student's offense count — 1st offense is a verbal warning, every offense after that is a ₱${REPEAT_OFFENSE_FINE} fine.</p>
       <div class="field">
         <label>Reported By</label>
@@ -1555,6 +1559,7 @@ function attachLogEvents(){
       studentId,
       categoryId: document.getElementById('lf_category').value,
       date: document.getElementById('lf_date').value,
+      time: document.getElementById('lf_time').value || nowTimeHHMM(),
       reportedBy: document.getElementById('lf_reporter').value.trim() || state.session.name,
       status: 'pending',
     };
@@ -1647,7 +1652,7 @@ function ledgerHTML(){
             ${avatarHTML({name:v.studentName, photo:v.studentPhoto})}
             <div class="li-main">
               <b>${escapeHtml(v.studentName)}</b>
-              <span>${escapeHtml(v.catTitle)} · ${formatDate(v.date)} · ${escapeHtml(getViolationSanction(v))}</span>
+              <span>${escapeHtml(v.catTitle)} · ${formatDateTime(v.date, v.time)} · ${escapeHtml(getViolationSanction(v))}</span>
               <span style="display:block;color:var(--ink-soft);">Reported by ${escapeHtml(v.reportedBy)}${v.source==='inspection'?' · <span class="insp-tag">Inspection</span>':''}${v.note?` · <span style="font-style:italic;">${escapeHtml(v.note)}</span>`:''}</span>
               ${violationWorkflowNoteHTML(v)}
             </div>
@@ -1907,7 +1912,7 @@ function renderModal(){
           return `<div class="history-item">
             <div class="history-top">
               ${statusChipHTML(v)}
-              <span class="history-date">${formatDate(v.date)}</span>
+              <span class="history-date">${formatDateTime(v.date, v.time)}</span>
             </div>
             <b class="history-check">${escapeHtml(cat?cat.title:'Unknown checkpoint')}</b>
             <span class="history-sanction">${escapeHtml(offenseSanctionLabel(v.offenseNumber, v.waived))}</span>
@@ -1960,7 +1965,7 @@ function renderModal(){
                 return `<div class="public-detail-row">
                   <div class="pd-top">
                     <span class="pd-check">${escapeHtml(cat?cat.title:'Unknown checkpoint')}</span>
-                    <span class="pd-date">${formatDate(v.date)}</span>
+                    <span class="pd-date">${formatDateTime(v.date, v.time)}</span>
                   </div>
                   <span class="pd-sanction">${escapeHtml(offenseSanctionLabel(v.offenseNumber, v.waived))}</span>
                   ${isMayorHere?`<div style="margin-top:6px;"><button class="btn-sm ${v.waived?'ghost':'danger'}" data-toggle-waive="${v.id}">${v.waived?ICON.check+'Un-waive Fine':ICON.cash+'Waive Fine'}</button></div>`:''}
@@ -2219,11 +2224,13 @@ async function sendInspectionReport(d){
     return;
   }
   const today = new Date().toISOString().slice(0,10);
+  const nowTime = nowTimeHHMM();
   const newRecs = fails.map((c,i)=>({
     id: 'v_'+Date.now()+'_'+i,
     studentId: d.studentId,
     categoryId: c.checkpointId,
     date: today,
+    time: nowTime,
     note: c.note || '',
     reportedBy: state.session.name,
     status: 'awaiting_approval',
@@ -2270,7 +2277,24 @@ function resizeImageFile(file, maxSize){
 }
 function escapeHtml(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function todayISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function nowTimeHHMM(){ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
 function formatDate(iso){ if(!iso) return '—'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+function formatTime(t){
+  if(!t) return '';
+  const parts = t.split(':');
+  const h = parseInt(parts[0],10), m = parseInt(parts[1],10);
+  if(isNaN(h)||isNaN(m)) return '';
+  const period = h>=12 ? 'PM' : 'AM';
+  const h12 = ((h+11)%12)+1;
+  return `${h12}:${String(m).padStart(2,'0')} ${period}`;
+}
+/* Combines a record's date with its time of report, when one was captured.
+   Older records logged before this feature have no `time`, so they just
+   fall back to the date alone. */
+function formatDateTime(iso, t){
+  const time = formatTime(t);
+  return time ? `${formatDate(iso)} · ${time}` : formatDate(iso);
+}
 function emptyState(title,sub,icon){ return `<div class="empty"><div class="empty-icon-wrap">${icon||ICON.clipboard}</div><b>${escapeHtml(title)}</b><span>${escapeHtml(sub)}</span></div>`; }
 
 /* ---- Formal Excel export (ExcelJS) — logo, summary sheet, styled ledger sheet ---- */
@@ -2325,6 +2349,7 @@ function computeLedgerReportData(){
       section: st ? (st.section||'—') : '—',
       checkpoint: cat ? cat.title : 'Unknown',
       date: v.date,
+      time: v.time || '',
       sanction: getViolationSanction(v),
       offenseNumber: getViolationOffenseNumber(v),
       note: v.note || '',
@@ -2509,7 +2534,7 @@ async function buildAndDownloadLedgerReport(){
     pageSetup:{orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0}
   });
   sheet.columns = [
-    {width:9}, {width:22}, {width:16}, {width:20}, {width:13}, {width:20}, {width:16}, {width:17}, {width:17}, {width:19}, {width:11}, {width:26}
+    {width:9}, {width:22}, {width:16}, {width:20}, {width:20}, {width:20}, {width:16}, {width:17}, {width:17}, {width:19}, {width:11}, {width:26}
   ];
   const LAST_COL = 11; // column K — Sanction
   const colLetters = ['A','B','C','D','E','F','G','H','I','J','K'];
@@ -2564,7 +2589,7 @@ async function buildAndDownloadLedgerReport(){
       runningIdx++;
       const excelRow = sheet.getRow(r);
       excelRow.outlineLevel = 1;
-      const values = [runningIdx, row.student, row.section, row.checkpoint, formatDate(row.date), meta.label, row.reportedBy, row.approvedBy, row.forwardedBy, row.resolvedBy, row.offenseNumber ? ordinal(row.offenseNumber) : '—', row.sanction];
+      const values = [runningIdx, row.student, row.section, row.checkpoint, formatDateTime(row.date, row.time), meta.label, row.reportedBy, row.approvedBy, row.forwardedBy, row.resolvedBy, row.offenseNumber ? ordinal(row.offenseNumber) : '—', row.sanction];
       values.forEach((val,ci)=>{
         const cell = excelRow.getCell(ci+1);
         cell.value = val;
@@ -2643,7 +2668,7 @@ function printLedgerReport(){
         <td>${escapePrintHtml(row.student)}</td>
         <td>${escapePrintHtml(row.section)}</td>
         <td>${escapePrintHtml(row.checkpoint)}</td>
-        <td>${escapePrintHtml(formatDate(row.date))}</td>
+        <td>${escapePrintHtml(formatDateTime(row.date, row.time))}</td>
         <td><span class="chip" style="background:${hexFromArgb(meta.bg)};color:${hexFromArgb(meta.text)};">${escapePrintHtml(meta.label)}</span></td>
         <td>${escapePrintHtml(row.reportedBy)}</td>
         <td>${escapePrintHtml(row.approvedBy)}</td>
