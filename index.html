@@ -1085,6 +1085,9 @@ function attachAppEvents(){
   if(state.tab==='dashboard' && state.session.role==='vice_mayor') attachViceMayorDashboardEvents();
   const gotoRoster = document.querySelector('[data-goto-roster]');
   if(gotoRoster) gotoRoster.onclick = ()=>{ state.tab='roster'; render(); };
+  document.querySelectorAll('[data-open-fines]').forEach(el=>{
+    el.onclick = ()=>{ state.modal = {type:'finesBreakdown', data:{}}; render(); };
+  });
 }
 async function doLogout(){
   state.session=null; state.screen='gate'; state._loginError=null;
@@ -1125,7 +1128,7 @@ function dashboardHTML(){
       <div class="stat gold"><div class="stat-icon">${ICON.users}</div><b class="mono" data-count="${state.roster.length}">0</b><span>Students Tracked</span></div>
       <div class="stat"><div class="stat-icon">${ICON.clock}</div><b class="mono" data-count="${awaitingApproval}">0</b><span>Awaiting Secretary Approval</span></div>
       <div class="stat"><div class="stat-icon">${ICON.send}</div><b class="mono" data-count="${inResolveReview}">0</b><span>In Resolve Review</span></div>
-      <div class="stat gold"><div class="stat-icon">${ICON.cash}</div><b class="mono" data-count="${classFines}" data-prefix="₱">0</b><span>Total Violation Fines</span></div>
+      <div class="stat gold" data-open-fines style="cursor:pointer;"><div class="stat-icon">${ICON.cash}</div><b class="mono" data-count="${classFines}" data-prefix="₱">0</b><span>Total Violation Fines</span></div>
     </div>
 
     <div class="howl-meter">
@@ -1293,7 +1296,7 @@ function secretaryDashboardHTML(){
       <div class="stat"><div class="stat-icon">${ICON.send}</div><b class="mono" data-count="${resolveReqs.length}">0</b><span>Resolve Requests</span></div>
       <div class="stat pend"><div class="stat-icon">${ICON.clock}</div><b class="mono" data-count="${pending}">0</b><span>Active Pending</span></div>
       <div class="stat res"><div class="stat-icon">${ICON.check}</div><b class="mono" data-count="${resolved}">0</b><span>Resolved</span></div>
-      <div class="stat gold"><div class="stat-icon">${ICON.cash}</div><b class="mono" data-count="${classFines}" data-prefix="₱">0</b><span>Total Violation Fines</span></div>
+      <div class="stat gold" data-open-fines style="cursor:pointer;"><div class="stat-icon">${ICON.cash}</div><b class="mono" data-count="${classFines}" data-prefix="₱">0</b><span>Total Violation Fines</span></div>
     </div>
 
     <h2 class="section-title" style="font-size:15px;margin-top:6px;">${ICON.clock}Violations Awaiting Your Approval</h2>
@@ -1336,7 +1339,7 @@ function viceMayorDashboardHTML(){
       <div class="stat pend"><div class="stat-icon">${ICON.clock}</div><b class="mono" data-count="${pending}">0</b><span>Active Pending</span></div>
       <div class="stat res"><div class="stat-icon">${ICON.check}</div><b class="mono" data-count="${resolved}">0</b><span>Resolved</span></div>
       <div class="stat gold"><div class="stat-icon">${ICON.list}</div><b class="mono" data-count="${total}">0</b><span>Total Logged</span></div>
-      <div class="stat gold"><div class="stat-icon">${ICON.cash}</div><b class="mono" data-count="${classFines}" data-prefix="₱">0</b><span>Total Violation Fines</span></div>
+      <div class="stat gold" data-open-fines style="cursor:pointer;"><div class="stat-icon">${ICON.cash}</div><b class="mono" data-count="${classFines}" data-prefix="₱">0</b><span>Total Violation Fines</span></div>
     </div>
 
     <div class="card" style="margin-bottom:16px;">
@@ -1920,6 +1923,33 @@ function renderModal(){
       <div class="modal-actions">
         <button class="btn-primary" id="modalSave" style="flex:1;justify-content:center;">Close</button>
       </div>`;
+  } else if(state.modal.type==='finesBreakdown'){
+    const withFines = state.roster
+      .map(s=>({student:s, fine:getStudentTotalFines(s.id)}))
+      .filter(r=>r.fine>0)
+      .sort((a,b)=> b.fine-a.fine || a.student.name.localeCompare(b.student.name));
+    const classFines = getClassTotalFines();
+    inner = `
+      <button class="close-x" id="modalClose">✕</button>
+      <h2 class="section-title">${ICON.cash}Total Violation Fines</h2>
+      <p class="subtext" style="margin-top:-4px;">₱${REPEAT_OFFENSE_FINE} per approved offense from the 2nd onward, resolved or not.</p>
+      <div class="card" style="margin:14px 0;padding:12px 14px;background:var(--cream);">
+        <p class="subtext" style="margin:0;">Class total: <b style="color:var(--gold-dim);">${formatPeso(classFines)}</b> across <b style="color:var(--ink);">${withFines.length}</b> student${withFines.length===1?'':'s'}.</p>
+      </div>
+      ${withFines.length===0? emptyState('No fines yet','No student has an approved 2nd offense yet.', ICON.check) :
+        `<div class="history-list">
+        ${withFines.map(r=>`
+          <div class="list-item" data-view-fine-student="${r.student.id}" style="cursor:pointer;">
+            ${avatarHTML(r.student)}
+            <div class="li-main"><b>${escapeHtml(r.student.name)}</b><span>${escapeHtml(r.student.section||'—')}</span></div>
+            <span class="status-chip" style="background:#fdf1de;color:#c98f16;">${ICON.cash}${formatPeso(r.fine)}</span>
+          </div>
+        `).join('')}
+        </div>`
+      }
+      <div class="modal-actions">
+        <button class="btn-primary" id="modalSave" style="flex:1;justify-content:center;">Close</button>
+      </div>`;
   } else if(state.modal.type==='account'){
     const d = state.modal.data;
     inner = `
@@ -1995,7 +2025,8 @@ function renderModal(){
   back.innerHTML = `<div class="modal">${inner}</div>`;
   document.getElementById('root').appendChild(back);
   document.getElementById('modalClose').onclick = closeModal;
-  document.getElementById('modalCancel').onclick = closeModal;
+  const modalCancelBtn = document.getElementById('modalCancel');
+  if(modalCancelBtn) modalCancelBtn.onclick = closeModal;
   back.onclick = (e)=>{ if(e.target===back) closeModal(); };
   document.getElementById('modalSave').onclick = saveModal;
 
@@ -2038,13 +2069,20 @@ function renderModal(){
         state.modal.data.checklist[i].note = inp.value;
       };
     });
+  } else if(state.modal.type==='finesBreakdown'){
+    document.querySelectorAll('[data-view-fine-student]').forEach(row=>{
+      row.onclick = ()=>{
+        state.modal = {type:'studentHistory', data:{studentId: row.dataset.viewFineStudent}};
+        render();
+      };
+    });
   }
 }
 function closeModal(){ state.modal=null; render(); }
 async function saveModal(){
   const type = state.modal.type;
   const d = state.modal.data;
-  if(type==='studentHistory'){
+  if(type==='studentHistory' || type==='finesBreakdown'){
     state.modal = null;
     render();
     return;
