@@ -974,10 +974,11 @@ function ordinal(n){
     default: return n+'th';
   }
 }
-function offenseSanctionLabel(offenseNumber){
+function offenseSanctionLabel(offenseNumber, waived){
   if(!offenseNumber) return 'Awaiting approval';
   if(offenseNumber===1) return '1st Offense: Verbal Warning';
-  return `${ordinal(offenseNumber)} Offense: Fine (₱${REPEAT_OFFENSE_FINE})`;
+  const base = `${ordinal(offenseNumber)} Offense: Fine (₱${REPEAT_OFFENSE_FINE})`;
+  return waived ? `${base} — Waived` : base;
 }
 /* Returns every violation belonging to a student, oldest first, each
    annotated with its offenseNumber (null until the Secretary has approved
@@ -998,13 +999,13 @@ function getViolationOffenseNumber(v){
   return match ? match.offenseNumber : null;
 }
 function getViolationSanction(v){
-  return offenseSanctionLabel(getViolationOffenseNumber(v));
+  return offenseSanctionLabel(getViolationOffenseNumber(v), v.waived);
 }
 /* Total fines owed by one student — every approved offense from the 2nd
    onward carries a fixed ₱50 fine, counted whether or not it has since
    been resolved (an awaiting-approval submission never counts). */
 function getStudentTotalFines(studentId){
-  return getStudentOffenseTimeline(studentId).filter(v=>v.offenseNumber && v.offenseNumber>=2).length * REPEAT_OFFENSE_FINE;
+  return getStudentOffenseTimeline(studentId).filter(v=>v.offenseNumber && v.offenseNumber>=2 && !v.waived).length * REPEAT_OFFENSE_FINE;
 }
 /* Class-wide total of every student's fines, for officer dashboards. */
 function getClassTotalFines(){
@@ -1902,13 +1903,14 @@ function renderModal(){
         `<div class="history-list">
         ${timeline.map(v=>{
           const cat = state.standard.find(c=>c.id===v.categoryId);
+          const isFineable = v.offenseNumber && v.offenseNumber>=2;
           return `<div class="history-item">
             <div class="history-top">
               ${statusChipHTML(v)}
               <span class="history-date">${formatDate(v.date)}</span>
             </div>
             <b class="history-check">${escapeHtml(cat?cat.title:'Unknown checkpoint')}</b>
-            <span class="history-sanction">${escapeHtml(offenseSanctionLabel(v.offenseNumber))}</span>
+            <span class="history-sanction">${escapeHtml(offenseSanctionLabel(v.offenseNumber, v.waived))}</span>
             ${v.note?`<span class="history-note">Note: ${escapeHtml(v.note)}</span>`:''}
             <div class="history-chain">
               <span>Inspected by ${escapeHtml(v.reportedBy||'—')}</span>
@@ -1916,6 +1918,10 @@ function renderModal(){
               ${v.forwardedBy?`<span>Forwarded by ${escapeHtml(v.forwardedBy)}</span>`:''}
               ${v.resolvedBy?`<span>Resolved by ${escapeHtml(v.resolvedBy)}</span>`:''}
             </div>
+            ${isFineable && state.session.role==='mayor'?`
+            <div style="margin-top:8px;">
+              <button class="btn-sm ${v.waived?'ghost':'danger'}" data-toggle-waive="${v.id}">${v.waived?ICON.check+'Un-waive Fine':ICON.cash+'Waive Fine'}</button>
+            </div>`:''}
           </div>`;
         }).join('')}
         </div>`
@@ -1924,9 +1930,10 @@ function renderModal(){
         <button class="btn-primary" id="modalSave" style="flex:1;justify-content:center;">Close</button>
       </div>`;
   } else if(state.modal.type==='finesBreakdown'){
+    const isMayorHere = state.session.role==='mayor';
     const withFines = state.roster
-      .map(s=>({student:s, fine:getStudentTotalFines(s.id)}))
-      .filter(r=>r.fine>0)
+      .map(s=>({student:s, fine:getStudentTotalFines(s.id), timeline: getStudentOffenseTimeline(s.id).filter(v=>v.offenseNumber && v.offenseNumber>=2)}))
+      .filter(r=>r.fine>0 || (isMayorHere && r.timeline.some(v=>v.waived)))
       .sort((a,b)=> b.fine-a.fine || a.student.name.localeCompare(b.student.name));
     const classFines = getClassTotalFines();
     inner = `
@@ -1934,16 +1941,33 @@ function renderModal(){
       <h2 class="section-title">${ICON.cash}Total Violation Fines</h2>
       <p class="subtext" style="margin-top:-4px;">₱${REPEAT_OFFENSE_FINE} per approved offense from the 2nd onward, resolved or not.</p>
       <div class="card" style="margin:14px 0;padding:12px 14px;background:var(--cream);">
-        <p class="subtext" style="margin:0;">Class total: <b style="color:var(--gold-dim);">${formatPeso(classFines)}</b> across <b style="color:var(--ink);">${withFines.length}</b> student${withFines.length===1?'':'s'}.</p>
+        <p class="subtext" style="margin:0;">Class total: <b style="color:var(--gold-dim);">${formatPeso(classFines)}</b> across <b style="color:var(--ink);">${withFines.filter(r=>r.fine>0).length}</b> student${withFines.filter(r=>r.fine>0).length===1?'':'s'}.</p>
       </div>
       ${withFines.length===0? emptyState('No fines yet','No student has an approved 2nd offense yet.', ICON.check) :
-        `<div class="history-list">
+        `<div class="card">
         ${withFines.map(r=>`
-          <div class="list-item" data-view-fine-student="${r.student.id}" style="cursor:pointer;">
-            ${avatarHTML(r.student)}
-            <div class="li-main"><b>${escapeHtml(r.student.name)}</b><span>${escapeHtml(r.student.section||'—')}</span></div>
-            <span class="status-chip" style="background:#fdf1de;color:#c98f16;">${ICON.cash}${formatPeso(r.fine)}</span>
-          </div>
+          <details class="public-row">
+            <summary>
+              <div class="list-item" style="pointer-events:none;">
+                ${avatarHTML(r.student)}
+                <div class="li-main"><b>${escapeHtml(r.student.name)}</b><span>${escapeHtml(r.student.section||'—')}</span></div>
+                <span class="status-chip" style="background:#fdf1de;color:#c98f16;">${ICON.cash}${formatPeso(r.fine)}</span>
+              </div>
+            </summary>
+            <div class="public-detail">
+              ${r.timeline.map(v=>{
+                const cat = state.standard.find(c=>c.id===v.categoryId);
+                return `<div class="public-detail-row">
+                  <div class="pd-top">
+                    <span class="pd-check">${escapeHtml(cat?cat.title:'Unknown checkpoint')}</span>
+                    <span class="pd-date">${formatDate(v.date)}</span>
+                  </div>
+                  <span class="pd-sanction">${escapeHtml(offenseSanctionLabel(v.offenseNumber, v.waived))}</span>
+                  ${isMayorHere?`<div style="margin-top:6px;"><button class="btn-sm ${v.waived?'ghost':'danger'}" data-toggle-waive="${v.id}">${v.waived?ICON.check+'Un-waive Fine':ICON.cash+'Waive Fine'}</button></div>`:''}
+                </div>`;
+              }).join('')}
+            </div>
+          </details>
         `).join('')}
         </div>`
       }
@@ -2069,10 +2093,18 @@ function renderModal(){
         state.modal.data.checklist[i].note = inp.value;
       };
     });
-  } else if(state.modal.type==='finesBreakdown'){
-    document.querySelectorAll('[data-view-fine-student]').forEach(row=>{
-      row.onclick = ()=>{
-        state.modal = {type:'studentHistory', data:{studentId: row.dataset.viewFineStudent}};
+  } else if(state.modal.type==='finesBreakdown' || state.modal.type==='studentHistory'){
+    document.querySelectorAll('[data-toggle-waive]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const id = btn.dataset.toggleWaive;
+        let found = true;
+        await mutateShared('ledger', latest=>{
+          const rec = latest.find(v=>v.id===id);
+          if(!rec){ found=false; return latest; }
+          rec.waived = !rec.waived;
+          return latest;
+        });
+        showToast(found ? 'Fine updated' : 'That violation was removed elsewhere');
         render();
       };
     });
