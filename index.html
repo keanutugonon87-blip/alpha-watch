@@ -31,42 +31,19 @@
     --danger-bg:#fbe8e6;
     --radius:14px;
     --shadow:0 8px 28px rgba(10,10,51,0.12);
-    --shadow-lift:0 16px 40px rgba(10,10,51,0.16);
-    --gold-glow:0 0 0 1px rgba(240,180,41,0.35), 0 10px 30px rgba(240,180,41,0.18);
-    --glass:rgba(255,253,248,0.72);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
-    background:
-      radial-gradient(circle at 12% -6%, rgba(43,43,214,0.07), transparent 42%),
-      radial-gradient(circle at 108% 18%, rgba(240,180,41,0.10), transparent 38%),
-      var(--cream);
-    background-attachment:fixed;
+    background:var(--cream);
     color:var(--ink);
     font-family:'Manrope',sans-serif;
     -webkit-font-smoothing:antialiased;
     min-height:100vh;
-    position:relative;
   }
-  body::before{
-    content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
-    background-image:
-      linear-gradient(135deg, rgba(43,43,214,0.05) 1px, transparent 1px),
-      linear-gradient(45deg, rgba(43,43,214,0.05) 1px, transparent 1px);
-    background-size:34px 34px;
-    background-position:0 0, 17px 17px;
-    -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 72%);
-    mask-image:radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 72%);
-  }
-  #app{position:relative;z-index:1;}
   ::selection{background:var(--gold-light);color:var(--navy-950);}
   .mono{font-family:'JetBrains Mono',monospace;}
   .display{font-family:'Cinzel',serif;}
-  ::-webkit-scrollbar{width:9px;height:9px;}
-  ::-webkit-scrollbar-track{background:transparent;}
-  ::-webkit-scrollbar-thumb{background:rgba(10,10,51,0.18);border-radius:20px;border:2px solid var(--cream);}
-  ::-webkit-scrollbar-thumb:hover{background:rgba(240,180,41,0.55);}
 
   /* ---------- App shell ---------- */
   #app{display:flex;min-height:100vh;flex-direction:column;}
@@ -79,18 +56,7 @@
     padding:12px 18px;
     position:sticky;top:0;z-index:40;
     box-shadow:0 4px 20px rgba(10,10,51,0.25);
-    backdrop-filter:blur(10px) saturate(1.2);
-    -webkit-backdrop-filter:blur(10px) saturate(1.2);
-    position:sticky;overflow:hidden;
   }
-  .topbar::after{
-    content:'';position:absolute;left:0;right:0;bottom:0;height:2px;
-    background:linear-gradient(90deg,transparent,var(--gold) 20%,var(--gold-light) 50%,var(--gold) 80%,transparent);
-    background-size:200% 100%;
-    animation:goldSheen 5s linear infinite;
-    opacity:.8;
-  }
-  @keyframes goldSheen{to{background-position:-200% 0;}}
   .brand{display:flex;align-items:center;gap:10px;}
   .logo-chip{
     display:flex;align-items:center;justify-content:center;flex-shrink:0;
@@ -155,7 +121,6 @@
       position:sticky;top:0;left:0;bottom:auto;flex-direction:column;
       width:180px;height:100vh;justify-content:flex-start;padding:18px 10px;gap:4px;
       box-shadow:4px 0 20px rgba(0,0,0,0.2);
-      border-right:1px solid rgba(240,180,41,0.15);
     }
     .navbar-logo{
       display:flex;align-items:center;gap:9px;padding:6px 8px 18px;
@@ -176,35 +141,17 @@
   .gate{
     min-height:100vh;display:flex;align-items:center;justify-content:center;
     background:radial-gradient(circle at 30% 20%,var(--navy-800),var(--navy-950) 70%);
-    padding:24px;position:relative;overflow:hidden;
+    padding:24px;
   }
-  .gate::before,.gate::after{
-    content:'';position:absolute;border-radius:50%;filter:blur(60px);pointer-events:none;
-  }
-  .gate::before{
-    width:340px;height:340px;background:radial-gradient(circle,rgba(240,180,41,0.22),transparent 70%);
-    top:-90px;left:-90px;animation:auraDrift 12s ease-in-out infinite;
-  }
-  .gate::after{
-    width:400px;height:400px;background:radial-gradient(circle,rgba(43,43,214,0.28),transparent 70%);
-    bottom:-120px;right:-100px;animation:auraDrift 14s ease-in-out infinite reverse;
-  }
-  @keyframes auraDrift{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(24px,-18px) scale(1.08);}}
   .gate-card{
     background:var(--paper);border-radius:20px;padding:34px 28px;max-width:380px;width:100%;
     box-shadow:0 30px 60px rgba(0,0,0,0.4);text-align:center;
     animation:cardRise .5s cubic-bezier(.2,.9,.3,1);
-    position:relative;z-index:1;border:1px solid rgba(240,180,41,0.25);
   }
   @keyframes cardRise{from{opacity:0;transform:translateY(28px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}
   .view-enter{animation:viewIn .4s cubic-bezier(.2,.9,.3,1);}
   @keyframes viewIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
-  .gate-card .logo-chip{width:112px;height:112px;margin:0 auto 10px;animation:crestFloat 3.2s ease-in-out infinite;position:relative;}
-  .gate-card .logo-chip::before{
-    content:'';position:absolute;inset:-14px;border-radius:50%;
-    background:radial-gradient(circle,rgba(240,180,41,0.28),transparent 70%);
-    animation:pulseGlow 3.2s ease-in-out infinite;z-index:-1;
-  }
+  .gate-card .logo-chip{width:112px;height:112px;margin:0 auto 10px;animation:crestFloat 3.2s ease-in-out infinite;}
   .gate-card h1{font-family:'Cinzel',serif;font-size:24px;letter-spacing:2px;margin:6px 0 2px;color:var(--navy-950);}
   .gate-card .tag{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold-dim);font-weight:700;margin-bottom:22px;}
   .field{text-align:left;margin-bottom:14px;}
@@ -228,15 +175,7 @@
     font-family:'Manrope',sans-serif;font-weight:800;font-size:14px;letter-spacing:0.4px;
     box-shadow:0 8px 20px rgba(43,43,214,0.35);
     display:flex;align-items:center;justify-content:center;gap:7px;
-    position:relative;overflow:hidden;
   }
-  .btn-primary::before{
-    content:'';position:absolute;top:0;bottom:0;left:-60%;width:40%;
-    background:linear-gradient(120deg,transparent,rgba(255,255,255,0.35),transparent);
-    transform:skewX(-20deg);
-  }
-  .btn-primary:hover:not(:disabled)::before{animation:btnShine 1s ease;}
-  @keyframes btnShine{from{left:-60%;}to{left:130%;}}
   .btn-primary svg{width:15px;height:15px;flex-shrink:0;}
   .btn-primary:disabled{opacity:0.45;cursor:not-allowed;box-shadow:none;}
   .gate-note{font-size:11px;color:var(--ink-soft);margin-top:14px;line-height:1.5;}
@@ -245,14 +184,8 @@
   .public-wrap{
     min-height:100vh; padding:36px 20px 48px;
     background:radial-gradient(circle at 30% 0%,var(--navy-800),var(--navy-950) 70%);
-    overflow-x:hidden;position:relative;
+    overflow-x:hidden;
   }
-  .public-wrap::before{
-    content:'';position:fixed;width:380px;height:380px;border-radius:50%;
-    background:radial-gradient(circle,rgba(240,180,41,0.16),transparent 70%);
-    filter:blur(70px);top:-100px;right:-100px;animation:auraDrift 13s ease-in-out infinite;pointer-events:none;
-  }
-  .public-wrap>*{position:relative;z-index:1;}
   .public-header{text-align:center;margin-bottom:20px;}
   .public-header .logo-chip{width:84px;height:84px;margin:0 auto 8px;}
   .public-header h1{font-family:'Cinzel',serif;font-size:22px;letter-spacing:2px;color:#fff;margin:0;}
@@ -282,34 +215,16 @@
   h2.section-title::after{
     content:'';position:absolute;left:0;bottom:0;width:38px;height:3px;border-radius:3px;
     background:linear-gradient(90deg,var(--gold),var(--gold-light));
-    box-shadow:0 0 10px rgba(240,180,41,0.55);
-    animation:titleGrow .5s cubic-bezier(.2,.9,.3,1) backwards;
   }
-  @keyframes titleGrow{from{width:0;opacity:0;}to{width:38px;opacity:1;}}
   h2.section-title svg{width:20px;height:20px;color:var(--gold-dim);}
   .subtext{color:var(--ink-soft);font-size:12.5px;margin:10px 0 18px;}
   .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);}
   .grid-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;}
   @media(min-width:560px){.grid-stats{grid-template-columns:repeat(4,1fr);}}
-  .grid-stats .stat{animation:itemIn .4s cubic-bezier(.2,.9,.3,1) backwards;}
-  .grid-stats .stat:nth-child(1){animation-delay:.02s;}
-  .grid-stats .stat:nth-child(2){animation-delay:.06s;}
-  .grid-stats .stat:nth-child(3){animation-delay:.10s;}
-  .grid-stats .stat:nth-child(4){animation-delay:.14s;}
-  .grid-stats .stat:nth-child(5){animation-delay:.18s;}
-  .grid-stats .stat:nth-child(n+6){animation-delay:.2s;}
   .stat{
     background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px 14px 12px;
     position:relative;overflow:hidden;
   }
-  .stat::after{
-    content:'';position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;
-    background:linear-gradient(140deg,rgba(240,180,41,0.35),transparent 40%);
-    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
-    -webkit-mask-composite:xor;mask-composite:exclude;
-    opacity:0;transition:opacity .25s ease;
-  }
-  .stat:hover::after{opacity:1;}
   .stat-icon{
     position:absolute;top:10px;right:10px;width:26px;height:26px;color:var(--line);opacity:.9;
   }
@@ -329,16 +244,7 @@
   .howl-meter .row b{font-family:'Cinzel',serif;font-size:14px;color:var(--navy-950);}
   .howl-meter .row .level{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.6px;padding:3px 9px;border-radius:20px;}
   .bar-track{height:10px;background:var(--line);border-radius:20px;overflow:hidden;}
-  .bar-fill{
-    height:100%;border-radius:20px;background:linear-gradient(90deg,var(--gold),var(--pending),var(--danger));
-    transition:width .6s cubic-bezier(.2,.9,.3,1);position:relative;overflow:hidden;
-  }
-  .bar-fill::after{
-    content:'';position:absolute;inset:0;
-    background:linear-gradient(90deg,transparent,rgba(255,255,255,0.5),transparent);
-    width:40%;animation:barShine 2.2s ease-in-out infinite;
-  }
-  @keyframes barShine{0%{transform:translateX(-120%);}100%{transform:translateX(280%);}}
+  .bar-fill{height:100%;border-radius:20px;background:linear-gradient(90deg,var(--gold),var(--pending),var(--danger));transition:width .5s ease;}
 
   .list-item{
     display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line);
@@ -442,15 +348,8 @@
     display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;
     color:var(--gold-light);font-size:12.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;gap:14px;
     background:radial-gradient(circle at 50% 30%,var(--navy-800),var(--navy-950) 75%);
-    position:relative;
   }
-  .loading-crest{width:52px;height:52px;color:var(--gold);animation:crestFloat 2.4s ease-in-out infinite;filter:drop-shadow(0 0 10px rgba(240,180,41,0.45));position:relative;}
-  .loading-crest::before{
-    content:'';position:absolute;inset:-18px;border-radius:50%;
-    background:radial-gradient(circle,rgba(240,180,41,0.35),transparent 70%);
-    animation:pulseGlow 2.4s ease-in-out infinite;z-index:-1;
-  }
-  @keyframes pulseGlow{0%,100%{opacity:.5;transform:scale(.9);}50%{opacity:1;transform:scale(1.15);}}
+  .loading-crest{width:52px;height:52px;color:var(--gold);animation:crestFloat 2.4s ease-in-out infinite;filter:drop-shadow(0 0 10px rgba(240,180,41,0.45));}
   .loading-crest svg{width:100%;height:100%;}
   .loading-ring{
     width:26px;height:26px;border-radius:50%;
@@ -461,12 +360,11 @@
   @keyframes spin{to{transform:rotate(360deg);}}
 
   /* ---------- Polish: transitions & hover states ---------- */
-  .card{transition:box-shadow .25s ease, transform .25s ease, border-color .25s ease;}
-  .card:hover{box-shadow:var(--shadow-lift);}
+  .card{transition:box-shadow .2s ease, transform .2s ease;}
   .std-item{transition:box-shadow .2s ease, transform .2s ease, border-color .2s ease;}
   .std-item:hover{box-shadow:0 10px 24px rgba(10,10,51,0.1);border-color:var(--gold);transform:translateY(-1px);}
-  .stat{transition:box-shadow .25s ease, transform .25s ease, border-color .25s ease;}
-  .stat:hover{box-shadow:var(--gold-glow);transform:translateY(-3px);border-color:transparent;}
+  .stat{transition:box-shadow .2s ease, transform .2s ease;}
+  .stat:hover{box-shadow:0 10px 22px rgba(10,10,51,0.1);transform:translateY(-2px);}
   .list-item{transition:background .15s ease;border-radius:10px;animation:itemIn .35s ease backwards;}
   @keyframes itemIn{from{opacity:0;transform:translateX(-6px);}to{opacity:1;transform:translateX(0);}}
   .list-item:nth-child(1){animation-delay:.02s;}
@@ -488,9 +386,8 @@
   .navbar button:hover{color:var(--gold-light);background:rgba(240,180,41,0.08);}
   .search{transition:border-color .15s ease, box-shadow .15s ease;}
   .search:focus-within{border-color:var(--royal);box-shadow:0 0 0 3px rgba(43,43,214,0.12);}
-  .avatar{box-shadow:0 2px 6px rgba(10,10,51,0.25);overflow:hidden;transition:box-shadow .2s ease,transform .2s ease;}
+  .avatar{box-shadow:0 2px 6px rgba(10,10,51,0.25);overflow:hidden;}
   .avatar img{width:100%;height:100%;object-fit:cover;display:block;}
-  .list-item:hover .avatar{box-shadow:0 0 0 2px var(--gold),0 4px 12px rgba(240,180,41,0.35);transform:scale(1.04);}
   .role-pick button{transition:border-color .15s ease, background .15s ease, transform .15s ease;}
   .role-pick button:hover{border-color:var(--royal);transform:translateY(-1px);}
   .close-x{transition:color .15s ease, transform .15s ease;}
@@ -614,6 +511,7 @@ const ICON = {
   medal:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="14.5" r="6"/><path d="M9.5 9.5L7 3h3l2 4.5L14 3h3l-2.5 6.5"/><path d="M12 11.5l1.2 2.4 2.6.4-1.9 1.9.5 2.6-2.4-1.3-2.4 1.3.5-2.6L8 14.3l2.6-.4z"/></svg>`,
   checklist:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h.01M8 12h.01M8 16h.01"/><path d="M11 8h5M11 12h5M11 16h5"/></svg>`,
   send:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>`,
+  cash:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 9v.01M18 15v.01"/></svg>`,
 };
 
 /* ============== Storage helpers (Supabase-backed) ============== */
@@ -635,7 +533,32 @@ async function saveShared(key, value){
   try{
     const { error } = await sb.from('shared_data').upsert({ key, value, updated_at: new Date().toISOString() });
     if(error) throw error;
-  }catch(e){ console.error('save failed', key, e); }
+  }catch(e){ console.error('save failed', key, e); showToastSafe('Sync failed — check your connection and try again'); }
+}
+
+// Re-fetches the latest copy of a shared list right before writing, then
+// applies `mutator` to THAT copy (not local state) and saves the result.
+// This shrinks the window in which two officers' near-simultaneous edits
+// (e.g. a Marshall submitting while the Secretary approves something else)
+// can silently clobber each other — whichever `saveShared` call landed last
+// used to win and discard the other's change outright. It's not a full
+// transaction, but it turns a near-guaranteed lost update into a rare one.
+// `mutator` receives the latest array and should return the array to save
+// (mutating elements in place and returning the same array is fine).
+async function mutateShared(key, mutator){
+  const latest = await loadShared(key, state[key]) || [];
+  const next = await mutator(latest);
+  state[key] = next;
+  await saveShared(key, next);
+  return next;
+}
+
+// showToast() calls render(), which assumes the app has already booted.
+// This guard lets background code (realtime/polling callbacks, save
+// failures) surface a toast even before the UI has state.screen set.
+function showToastSafe(msg){
+  if(state.screen && state.screen!=='loading') showToast(msg);
+  else console.warn(msg);
 }
 
 // "Personal" data (just the local sign-in session) stays on-device
@@ -648,6 +571,93 @@ async function loadPersonal(key, fallback){
 }
 async function savePersonal(key, value){
   try{ localStorage.setItem('alpha-watch::'+key, JSON.stringify(value)); }catch(e){ console.error('save failed', key, e); }
+}
+
+/* ============== Live sync (realtime + polling fallback) ==============
+   Shared data used to be loaded once at startup only, so a Marshall's
+   submission wouldn't show up for the Secretary until they refreshed the
+   page. This subscribes to changes on the `shared_data` table so open tabs
+   pick up other officers' edits automatically. Realtime requires the table
+   to be added to Supabase's `supabase_realtime` publication in the project
+   settings — if that's not enabled, the polling fallback below still keeps
+   things in sync every 20s. */
+const SYNC_KEYS = ['roster','standard','ledger','accounts'];
+let lastSyncedRaw = {};
+
+function applyRemoteUpdate(key, value){
+  if(!SYNC_KEYS.includes(key)) return;
+  lastSyncedRaw[key] = JSON.stringify(value);
+  state[key] = value;
+  // If our own account was edited or removed by the Mayor elsewhere, keep
+  // the session in step (or sign out) rather than acting on stale info.
+  if(key==='accounts' && state.session){
+    const acc = value.find(a=>a.id===state.session.accountId);
+    if(!acc){
+      state.session = null;
+      state.screen = 'gate';
+      savePersonal('session', null);
+      showToastSafe('Your account was removed — please sign in again');
+      return renderPreserveFocus();
+    }
+    if(acc.role!==state.session.role || acc.name!==state.session.name){
+      state.session = {...state.session, role:acc.role, name:acc.name};
+    }
+  }
+  // Don't yank the rug out from under someone mid-edit in a modal — the
+  // fresh data is already in state, it'll show as soon as they close it.
+  if(state.modal) return;
+  if(state.screen!=='app' && state.screen!=='public') return;
+  renderPreserveFocus();
+}
+
+// Re-renders while preserving focus + cursor position on whatever input the
+// person is currently typing in, so a background sync doesn't interrupt
+// e.g. someone mid-search.
+function renderPreserveFocus(){
+  const active = document.activeElement;
+  const id = active && active.id;
+  const hasSelection = active && 'selectionStart' in active;
+  const selStart = hasSelection ? active.selectionStart : null;
+  const selEnd = hasSelection ? active.selectionEnd : null;
+  render();
+  if(id){
+    const el = document.getElementById(id);
+    if(el){
+      el.focus();
+      if(selStart!=null && el.setSelectionRange){
+        try{ el.setSelectionRange(selStart, selEnd); }catch(e){}
+      }
+    }
+  }
+}
+
+function subscribeRealtime(){
+  try{
+    sb.channel('shared_data_sync')
+      .on('postgres_changes', {event:'*', schema:'public', table:'shared_data'}, (payload)=>{
+        const row = payload.new && payload.new.key ? payload.new : payload.old;
+        if(!row || !row.key || !payload.new) return;
+        applyRemoteUpdate(row.key, payload.new.value);
+      })
+      .subscribe();
+  }catch(e){ console.error('realtime subscribe failed', e); }
+}
+
+function startSyncPolling(){
+  setInterval(async ()=>{
+    // Skip while someone's actively filling out a form — same reasoning as
+    // in applyRemoteUpdate, plus no point spending a round trip mid-edit.
+    if(state.modal) return;
+    if(state.screen!=='app' && state.screen!=='public') return;
+    for(const key of SYNC_KEYS){
+      try{
+        const value = await loadShared(key, undefined);
+        if(value===undefined) continue;
+        const raw = JSON.stringify(value);
+        if(raw!==lastSyncedRaw[key]) applyRemoteUpdate(key, value);
+      }catch(e){ console.error('poll failed', key, e); }
+    }
+  }, 20000);
 }
 
 /* ============== Password hashing (SHA-256, salted with username) ============== */
@@ -685,6 +695,13 @@ let state = {
   _setupError:null,
   _loginError:null,
 };
+// Lightweight client-side brake on repeated failed logins. This is only a
+// speed bump for someone fumbling their password in the app UI — it does
+// NOT stop a scripted attacker hitting Supabase's REST API directly. Real
+// protection against that has to live in Supabase (RLS policies on the
+// `shared_data` table, since the `accounts` list — including password
+// hashes — is stored there and reachable with the public anon key).
+let loginLockout = {attempts:0, until:0};
 
 function render(){
   const root = document.getElementById('root');
@@ -707,13 +724,14 @@ function render(){
 function runCountUps(){
   document.querySelectorAll('[data-count]').forEach(el=>{
     const target = parseInt(el.dataset.count, 10) || 0;
-    if(target===0){ el.textContent='0'; return; }
+    const prefix = el.dataset.prefix || '';
+    if(target===0){ el.textContent=prefix+'0'; return; }
     const duration = 550;
     const start = performance.now();
     function tick(now){
       const p = Math.min(1, (now-start)/duration);
       const eased = 1 - Math.pow(1-p, 3);
-      el.textContent = Math.round(eased*target);
+      el.textContent = prefix+Math.round(eased*target).toLocaleString('en-PH');
       if(p<1) requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
@@ -787,12 +805,31 @@ function attachGateEvents(){
   const pInput = document.getElementById('lg_password');
   uInput.focus();
   const submit = async ()=>{
+    const now = Date.now();
+    if(now < loginLockout.until){
+      const wait = Math.ceil((loginLockout.until-now)/1000);
+      state._loginError = `Too many attempts — try again in ${wait}s.`;
+      render();
+      return;
+    }
     const username = uInput.value.trim();
     const password = pInput.value;
     if(!username || !password){ state._loginError='Enter your username and password.'; render(); return; }
     const passwordHash = await hashPassword(username, password);
     const account = state.accounts.find(a=> a.username.toLowerCase()===username.toLowerCase() && a.passwordHash===passwordHash);
-    if(!account){ state._loginError='Incorrect username or password.'; render(); return; }
+    if(!account){
+      loginLockout.attempts++;
+      if(loginLockout.attempts>=5){
+        loginLockout.until = Date.now()+15000;
+        loginLockout.attempts = 0;
+        state._loginError = 'Too many attempts — try again in 15s.';
+      } else {
+        state._loginError='Incorrect username or password.';
+      }
+      render();
+      return;
+    }
+    loginLockout = {attempts:0, until:0};
     state.session = {name:account.name, role:account.role, username:account.username, accountId:account.id};
     await savePersonal('session', state.session);
     state._loginError=null;
@@ -845,6 +882,7 @@ function publicHTML(){
       ${rows.length===0? emptyState('No students found','Try a different search.', ICON.users) :
         rows.map(s=>{
           const hasItems = s.items.length>0;
+          const fine = getStudentTotalFines(s.id);
           return `
           <details class="public-row">
             <summary>
@@ -852,7 +890,7 @@ function publicHTML(){
                 ${avatarHTML(s)}
                 <div class="li-main">
                   <b>${escapeHtml(s.name)}</b>
-                  <span>${escapeHtml(s.section||'—')}</span>
+                  <span>${escapeHtml(s.section||'—')}${fine>0?` · ${formatPeso(fine)} total fines`:''}</span>
                 </div>
                 <span class="status-chip ${hasItems?'pending':'resolved'}">${hasItems?ICON.clock:ICON.check}${hasItems? s.items.length+' pending' : 'clear'}</span>
               </div>
@@ -962,6 +1000,17 @@ function getViolationOffenseNumber(v){
 function getViolationSanction(v){
   return offenseSanctionLabel(getViolationOffenseNumber(v));
 }
+/* Total fines owed by one student — every approved offense from the 2nd
+   onward carries a fixed ₱50 fine, counted whether or not it has since
+   been resolved (an awaiting-approval submission never counts). */
+function getStudentTotalFines(studentId){
+  return getStudentOffenseTimeline(studentId).filter(v=>v.offenseNumber && v.offenseNumber>=2).length * REPEAT_OFFENSE_FINE;
+}
+/* Class-wide total of every student's fines, for officer dashboards. */
+function getClassTotalFines(){
+  return state.roster.reduce((sum,s)=> sum + getStudentTotalFines(s.id), 0);
+}
+function formatPeso(n){ return '₱'+n.toLocaleString('en-PH'); }
 function currentDashboardHTML(){
   const role = state.session.role;
   if(role==='sails') return sailsDashboardHTML();
@@ -1063,6 +1112,7 @@ function dashboardHTML(){
   const topStudent = topId ? state.roster.find(s=>s.id===topId) : null;
 
   const recent = [...state.ledger].sort((a,b)=> b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0,6);
+  const classFines = getClassTotalFines();
 
   return `
     <h2 class="section-title">${ICON.home}Command Deck</h2>
@@ -1075,6 +1125,7 @@ function dashboardHTML(){
       <div class="stat gold"><div class="stat-icon">${ICON.users}</div><b class="mono" data-count="${state.roster.length}">0</b><span>Students Tracked</span></div>
       <div class="stat"><div class="stat-icon">${ICON.clock}</div><b class="mono" data-count="${awaitingApproval}">0</b><span>Awaiting Secretary Approval</span></div>
       <div class="stat"><div class="stat-icon">${ICON.send}</div><b class="mono" data-count="${inResolveReview}">0</b><span>In Resolve Review</span></div>
+      <div class="stat gold"><div class="stat-icon">${ICON.cash}</div><b class="mono" data-count="${classFines}" data-prefix="₱">0</b><span>Total Violation Fines</span></div>
     </div>
 
     <div class="howl-meter">
@@ -1231,6 +1282,7 @@ function secretaryDashboardHTML(){
   const resolveReqs = state.ledger.filter(v=>v.status==='resolve_requested').sort((a,b)=> a.date.localeCompare(b.date));
   const pending = state.ledger.filter(v=>v.status==='pending').length;
   const resolved = state.ledger.filter(v=>v.status==='resolved').length;
+  const classFines = getClassTotalFines();
 
   return `
     <h2 class="section-title">${ICON.key}Secretary Desk</h2>
@@ -1241,6 +1293,7 @@ function secretaryDashboardHTML(){
       <div class="stat"><div class="stat-icon">${ICON.send}</div><b class="mono" data-count="${resolveReqs.length}">0</b><span>Resolve Requests</span></div>
       <div class="stat pend"><div class="stat-icon">${ICON.clock}</div><b class="mono" data-count="${pending}">0</b><span>Active Pending</span></div>
       <div class="stat res"><div class="stat-icon">${ICON.check}</div><b class="mono" data-count="${resolved}">0</b><span>Resolved</span></div>
+      <div class="stat gold"><div class="stat-icon">${ICON.cash}</div><b class="mono" data-count="${classFines}" data-prefix="₱">0</b><span>Total Violation Fines</span></div>
     </div>
 
     <h2 class="section-title" style="font-size:15px;margin-top:6px;">${ICON.clock}Violations Awaiting Your Approval</h2>
@@ -1272,6 +1325,7 @@ function viceMayorDashboardHTML(){
   const pending = state.ledger.filter(v=>v.status==='pending').length;
   const resolveReqs = state.ledger.filter(v=>v.status==='resolve_requested').length;
   const resolved = state.ledger.filter(v=>v.status==='resolved').length;
+  const classFines = getClassTotalFines();
 
   return `
     <h2 class="section-title">${ICON.checklist}Vice Mayor's Watch</h2>
@@ -1282,6 +1336,7 @@ function viceMayorDashboardHTML(){
       <div class="stat pend"><div class="stat-icon">${ICON.clock}</div><b class="mono" data-count="${pending}">0</b><span>Active Pending</span></div>
       <div class="stat res"><div class="stat-icon">${ICON.check}</div><b class="mono" data-count="${resolved}">0</b><span>Resolved</span></div>
       <div class="stat gold"><div class="stat-icon">${ICON.list}</div><b class="mono" data-count="${total}">0</b><span>Total Logged</span></div>
+      <div class="stat gold"><div class="stat-icon">${ICON.cash}</div><b class="mono" data-count="${classFines}" data-prefix="₱">0</b><span>Total Violation Fines</span></div>
     </div>
 
     <div class="card" style="margin-bottom:16px;">
@@ -1349,10 +1404,8 @@ function attachRosterEvents(){
     b.onclick = async ()=>{
       if(!confirm('Remove this student and all their violation records?')) return;
       const id = b.dataset.delStudent;
-      state.roster = state.roster.filter(s=>s.id!==id);
-      state.ledger = state.ledger.filter(v=>v.studentId!==id);
-      await saveShared('roster', state.roster);
-      await saveShared('ledger', state.ledger);
+      await mutateShared('roster', latest=>latest.filter(s=>s.id!==id));
+      await mutateShared('ledger', latest=>latest.filter(v=>v.studentId!==id));
       showToast('Student removed');
       render();
     };
@@ -1407,8 +1460,7 @@ function attachStandardEvents(){
   document.querySelectorAll('[data-del-std]').forEach(b=>{
     b.onclick = async ()=>{
       if(!confirm('Remove this checkpoint from The Standard?')) return;
-      state.standard = state.standard.filter(c=>c.id!==b.dataset.delStd);
-      await saveShared('standard', state.standard);
+      await mutateShared('standard', latest=>latest.filter(c=>c.id!==b.dataset.delStd));
       showToast('Checkpoint removed');
       render();
     };
@@ -1504,8 +1556,7 @@ function attachLogEvents(){
     };
     if(!rec.studentId){ showToast('Please select a student from the list'); return; }
     if(!rec.categoryId){ showToast('Please select a checkpoint'); return; }
-    state.ledger.push(rec);
-    await saveShared('ledger', state.ledger);
+    await mutateShared('ledger', latest=>{ latest.push(rec); return latest; });
     showToast('Violation logged');
     state.tab='ledger';
     render();
@@ -1619,8 +1670,7 @@ function attachLedgerEvents(){
   document.querySelectorAll('[data-del-violation]').forEach(b=>{
     b.onclick = async ()=>{
       if(!confirm('Delete this violation record?')) return;
-      state.ledger = state.ledger.filter(v=>v.id!==b.dataset.delViolation);
-      await saveShared('ledger', state.ledger);
+      await mutateShared('ledger', latest=>latest.filter(v=>v.id!==b.dataset.delViolation));
       showToast('Record deleted');
       render();
     };
@@ -1628,78 +1678,107 @@ function attachLedgerEvents(){
 }
 /* Shared by the Ledger tab and the Secretary/Vice Mayor dashboard queues */
 function attachViolationWorkflowEvents(){
+  // Each handler re-fetches the ledger right before writing (via
+  // mutateShared) and finds the record in THAT copy, not the possibly-stale
+  // local `state.ledger` — otherwise two officers acting on the same or
+  // different records within a few seconds of each other could stomp on
+  // one another's changes. If the record's already gone (someone else
+  // handled it first), we just no-op with a toast instead of erroring.
   document.querySelectorAll('[data-approve-violation]').forEach(b=>{
     b.onclick = async ()=>{
-      const rec = state.ledger.find(v=>v.id===b.dataset.approveViolation);
-      if(!rec) return;
-      rec.status = 'pending';
-      rec.approvedBy = state.session.name;
-      await saveShared('ledger', state.ledger);
-      showToast('Violation approved');
+      const id = b.dataset.approveViolation;
+      let found = true;
+      await mutateShared('ledger', latest=>{
+        const rec = latest.find(v=>v.id===id);
+        if(!rec){ found=false; return latest; }
+        rec.status = 'pending';
+        rec.approvedBy = state.session.name;
+        return latest;
+      });
+      showToast(found ? 'Violation approved' : 'That record was already handled elsewhere');
       render();
     };
   });
   document.querySelectorAll('[data-decline-violation]').forEach(b=>{
     b.onclick = async ()=>{
       if(!confirm('Decline and remove this submitted violation?')) return;
-      state.ledger = state.ledger.filter(v=>v.id!==b.dataset.declineViolation);
-      await saveShared('ledger', state.ledger);
+      await mutateShared('ledger', latest=>latest.filter(v=>v.id!==b.dataset.declineViolation));
       showToast('Violation declined');
       render();
     };
   });
   document.querySelectorAll('[data-request-resolve]').forEach(b=>{
     b.onclick = async ()=>{
-      const rec = state.ledger.find(v=>v.id===b.dataset.requestResolve);
-      if(!rec) return;
-      rec.status = 'resolve_requested';
-      rec.resolveRequestedBy = state.session.name;
-      await saveShared('ledger', state.ledger);
-      showToast('Resolve request sent to the Secretary');
+      const id = b.dataset.requestResolve;
+      let found = true;
+      await mutateShared('ledger', latest=>{
+        const rec = latest.find(v=>v.id===id);
+        if(!rec){ found=false; return latest; }
+        rec.status = 'resolve_requested';
+        rec.resolveRequestedBy = state.session.name;
+        return latest;
+      });
+      showToast(found ? 'Resolve request sent to the Secretary' : 'That record was already handled elsewhere');
       render();
     };
   });
   document.querySelectorAll('[data-forward-resolve]').forEach(b=>{
     b.onclick = async ()=>{
-      const rec = state.ledger.find(v=>v.id===b.dataset.forwardResolve);
-      if(!rec) return;
-      rec.status = 'resolve_forwarded';
-      rec.forwardedBy = state.session.name;
-      await saveShared('ledger', state.ledger);
-      showToast('Forwarded to the Vice Mayor');
+      const id = b.dataset.forwardResolve;
+      let found = true;
+      await mutateShared('ledger', latest=>{
+        const rec = latest.find(v=>v.id===id);
+        if(!rec){ found=false; return latest; }
+        rec.status = 'resolve_forwarded';
+        rec.forwardedBy = state.session.name;
+        return latest;
+      });
+      showToast(found ? 'Forwarded to the Vice Mayor' : 'That record was already handled elsewhere');
       render();
     };
   });
   document.querySelectorAll('[data-decline-resolve]').forEach(b=>{
     b.onclick = async ()=>{
-      const rec = state.ledger.find(v=>v.id===b.dataset.declineResolve);
-      if(!rec) return;
-      rec.status = 'pending';
-      delete rec.resolveRequestedBy;
-      await saveShared('ledger', state.ledger);
-      showToast('Resolve request declined');
+      const id = b.dataset.declineResolve;
+      let found = true;
+      await mutateShared('ledger', latest=>{
+        const rec = latest.find(v=>v.id===id);
+        if(!rec){ found=false; return latest; }
+        rec.status = 'pending';
+        delete rec.resolveRequestedBy;
+        return latest;
+      });
+      showToast(found ? 'Resolve request declined' : 'That record was already handled elsewhere');
       render();
     };
   });
   document.querySelectorAll('[data-approve-resolve]').forEach(b=>{
     b.onclick = async ()=>{
-      const rec = state.ledger.find(v=>v.id===b.dataset.approveResolve);
-      if(!rec) return;
-      rec.status = 'resolved';
-      rec.resolvedBy = state.session.name;
-      await saveShared('ledger', state.ledger);
-      showToast('Resolution approved');
+      const id = b.dataset.approveResolve;
+      let found = true;
+      await mutateShared('ledger', latest=>{
+        const rec = latest.find(v=>v.id===id);
+        if(!rec){ found=false; return latest; }
+        rec.status = 'resolved';
+        rec.resolvedBy = state.session.name;
+        return latest;
+      });
+      showToast(found ? 'Resolution approved' : 'That record was already handled elsewhere');
       render();
     };
   });
   document.querySelectorAll('[data-decline-resolve-vp]').forEach(b=>{
     b.onclick = async ()=>{
-      const rec = state.ledger.find(v=>v.id===b.dataset.declineResolveVp);
-      if(!rec) return;
-      rec.status = 'pending';
-      delete rec.resolveRequestedBy; delete rec.forwardedBy;
-      await saveShared('ledger', state.ledger);
-      showToast('Resolution declined — sent back to pending');
+      const id = b.dataset.declineResolveVp;
+      let found = true;
+      await mutateShared('ledger', latest=>{
+        const rec = latest.find(v=>v.id===id);
+        if(!rec){ found=false; return latest; }
+        rec.status = 'pending';
+        delete rec.resolveRequestedBy; delete rec.forwardedBy;
+        return latest;
+      });
+      showToast(found ? 'Resolution declined — sent back to pending' : 'That record was already handled elsewhere');
       render();
     };
   });
@@ -1739,11 +1818,13 @@ function attachAccountsEvents(){
     b.onclick = async ()=>{
       const target = state.accounts.find(a=>a.id===b.dataset.delAccount);
       if(!confirm(`Remove the account for "${target.name}"?`)) return;
-      const latestAccounts = await loadShared('accounts', state.accounts);
-      const mayorCount = latestAccounts.filter(a=>a.role==='mayor').length;
-      if(target.role==='mayor' && mayorCount<=1){ showToast("Can't remove the only Mayor account"); return; }
-      state.accounts = latestAccounts.filter(a=>a.id!==target.id);
-      await saveShared('accounts', state.accounts);
+      let blocked = false;
+      await mutateShared('accounts', latest=>{
+        const mayorCount = latest.filter(a=>a.role==='mayor').length;
+        if(target.role==='mayor' && mayorCount<=1){ blocked=true; return latest; }
+        return latest.filter(a=>a.id!==target.id);
+      });
+      if(blocked){ showToast("Can't remove the only Mayor account"); return; }
       showToast('Account removed');
       render();
     };
@@ -1977,26 +2058,36 @@ async function saveModal(){
     if(!name){ showToast('Name is required'); return; }
     const section = document.getElementById('m_section').value.trim();
     const photo = d.photo || null;
-    if(d.id){
-      const s = state.roster.find(x=>x.id===d.id);
-      s.name=name; s.photo=photo; s.section=section;
-    } else {
-      state.roster.push({id:'st_'+Date.now(), name, photo, section});
-    }
-    await saveShared('roster', state.roster);
+    let missing = false;
+    await mutateShared('roster', latest=>{
+      if(d.id){
+        const s = latest.find(x=>x.id===d.id);
+        if(!s){ missing=true; return latest; }
+        s.name=name; s.photo=photo; s.section=section;
+      } else {
+        latest.push({id:'st_'+Date.now(), name, photo, section});
+      }
+      return latest;
+    });
+    if(missing){ showToast('That student was removed elsewhere — nothing saved'); state.modal=null; render(); return; }
     showToast('Student saved');
   } else if(type==='standard'){
     const title = document.getElementById('m_title').value.trim();
     const local = document.getElementById('m_local').value.trim();
     const rule = document.getElementById('m_rule').value.trim();
     if(!title){ showToast('Title is required'); return; }
-    if(d.id){
-      const c = state.standard.find(x=>x.id===d.id);
-      c.title=title; c.local=local; c.rule=rule;
-    } else {
-      state.standard.push({id:'std_'+Date.now(), title, local, rule});
-    }
-    await saveShared('standard', state.standard);
+    let missing = false;
+    await mutateShared('standard', latest=>{
+      if(d.id){
+        const c = latest.find(x=>x.id===d.id);
+        if(!c){ missing=true; return latest; }
+        c.title=title; c.local=local; c.rule=rule;
+      } else {
+        latest.push({id:'std_'+Date.now(), title, local, rule});
+      }
+      return latest;
+    });
+    if(missing){ showToast('That checkpoint was removed elsewhere — nothing saved'); state.modal=null; render(); return; }
     showToast('Checkpoint saved');
   } else if(type==='account'){
     const name = document.getElementById('m_acc_name').value.trim();
@@ -2005,36 +2096,45 @@ async function saveModal(){
     const role = document.getElementById('m_acc_role').value;
     if(!name || !username || !password){ showToast('Please fill in every field'); return; }
     if(password.length<4){ showToast('Password must be at least 4 characters'); return; }
+    const passwordHash = await hashPassword(username, password);
+    let taken = false;
     // Re-fetch the latest accounts right before writing, so a concurrent
     // Add/Reset from another device isn't silently overwritten.
-    const latestAccounts = await loadShared('accounts', state.accounts);
-    if(latestAccounts.some(a=>a.username.toLowerCase()===username.toLowerCase())){ showToast('That username is already taken'); return; }
-    const passwordHash = await hashPassword(username, password);
-    state.accounts = [...latestAccounts, {id:'acc_'+Date.now(), name, username, role, passwordHash}];
-    await saveShared('accounts', state.accounts);
+    await mutateShared('accounts', latest=>{
+      if(latest.some(a=>a.username.toLowerCase()===username.toLowerCase())){ taken=true; return latest; }
+      latest.push({id:'acc_'+Date.now(), name, username, role, passwordHash});
+      return latest;
+    });
+    if(taken){ showToast('That username is already taken'); return; }
     showToast('Account created');
   } else if(type==='resetpass'){
     const password = document.getElementById('m_reset_password').value;
     if(!password || password.length<4){ showToast('Password must be at least 4 characters'); return; }
-    const latestAccounts = await loadShared('accounts', state.accounts);
-    const acc = latestAccounts.find(a=>a.id===d.id);
-    if(!acc){ showToast('Account not found — it may have been removed elsewhere'); return; }
-    acc.passwordHash = await hashPassword(acc.username, password);
-    state.accounts = latestAccounts;
-    await saveShared('accounts', state.accounts);
+    let notFound = false;
+    await mutateShared('accounts', async latest=>{
+      const acc = latest.find(a=>a.id===d.id);
+      if(!acc){ notFound=true; return latest; }
+      acc.passwordHash = await hashPassword(acc.username, password);
+      return latest;
+    });
+    if(notFound){ showToast('Account not found — it may have been removed elsewhere'); return; }
     showToast('Password reset');
   } else if(type==='selfpass'){
     const cur = document.getElementById('m_cur_password').value;
     const next = document.getElementById('m_new_password').value;
-    const latestAccounts = await loadShared('accounts', state.accounts);
-    const acc = latestAccounts.find(a=>a.id===state.session.accountId);
-    if(!acc){ showToast('Account not found'); return; }
-    const curHash = await hashPassword(acc.username, cur);
-    if(curHash!==acc.passwordHash){ showToast('Current password is incorrect'); return; }
-    if(!next || next.length<4){ showToast('New password must be at least 4 characters'); return; }
-    acc.passwordHash = await hashPassword(acc.username, next);
-    state.accounts = latestAccounts;
-    await saveShared('accounts', state.accounts);
+    let result = 'ok';
+    await mutateShared('accounts', async latest=>{
+      const acc = latest.find(a=>a.id===state.session.accountId);
+      if(!acc){ result='notfound'; return latest; }
+      const curHash = await hashPassword(acc.username, cur);
+      if(curHash!==acc.passwordHash){ result='wrongpass'; return latest; }
+      if(!next || next.length<4){ result='tooshort'; return latest; }
+      acc.passwordHash = await hashPassword(acc.username, next);
+      return latest;
+    });
+    if(result==='notfound'){ showToast('Account not found'); return; }
+    if(result==='wrongpass'){ showToast('Current password is incorrect'); return; }
+    if(result==='tooshort'){ showToast('New password must be at least 4 characters'); return; }
     showToast('Password updated');
   }
   state.modal=null;
@@ -2049,19 +2149,17 @@ async function sendInspectionReport(d){
     return;
   }
   const today = new Date().toISOString().slice(0,10);
-  fails.forEach((c,i)=>{
-    state.ledger.push({
-      id: 'v_'+Date.now()+'_'+i,
-      studentId: d.studentId,
-      categoryId: c.checkpointId,
-      date: today,
-      note: c.note || '',
-      reportedBy: state.session.name,
-      status: 'awaiting_approval',
-      source: 'inspection',
-    });
-  });
-  await saveShared('ledger', state.ledger);
+  const newRecs = fails.map((c,i)=>({
+    id: 'v_'+Date.now()+'_'+i,
+    studentId: d.studentId,
+    categoryId: c.checkpointId,
+    date: today,
+    note: c.note || '',
+    reportedBy: state.session.name,
+    status: 'awaiting_approval',
+    source: 'inspection',
+  }));
+  await mutateShared('ledger', latest=>{ latest.push(...newRecs); return latest; });
   showToast(`Report sent to the Secretary for approval — ${fails.length} violation${fails.length>1?'s':''} submitted`);
   state.modal=null;
   render();
@@ -2642,7 +2740,15 @@ async function init(){
   state.standard = standard && standard.length ? standard : DEFAULT_STANDARD;
   state.ledger = ledger;
   state.accounts = accounts;
+  lastSyncedRaw = {
+    roster: JSON.stringify(state.roster),
+    standard: JSON.stringify(state.standard),
+    ledger: JSON.stringify(state.ledger),
+    accounts: JSON.stringify(state.accounts),
+  };
   if(!standard || !standard.length) await saveShared('standard', DEFAULT_STANDARD);
+  subscribeRealtime();
+  startSyncPolling();
 
   if(!accounts || accounts.length===0){
     state.screen = 'setup';
